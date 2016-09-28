@@ -1,0 +1,6 @@
+.aws_creds
+terraform.tfvars
+terraform.tfstate*
+*.swp
+*.swo
+inventory
