@@ -1,6 +1,7 @@
 .aws_creds
 terraform.tfvars
 terraform.tfstate*
+terraform.plan*
 *.swp
 *.swo
 inventory

@@ -5,9 +5,16 @@ aws_secret_key = "Sxxxxxxxxxxxxxxxxxxxxxxxx"
 keypair = "AWS_SSH_Key"
 key_path = "/mnt/nfs/veits/PC/PKI/AWS/AWS_SSH_Key.pem"
 
+# IP address that should have full access to master and nodes:
+IP_with_full_access = "1.1.1.1"
+
 # AWS region
 aws_region = "eu-central-1"
 aws_availability_zone = "eu-central-1a"
+
+# AWS VPC & subnet
+aws_vpc_openshift_cidr_block = "10.50.0.0/16"
+aws_subnet_openshift_master_nodes_cidr_block = "10.50.1.0/24"
 
 # AWS instances
 master_instance_type = "c3.large"

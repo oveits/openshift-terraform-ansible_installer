@@ -9,11 +9,7 @@ aws_secret_key="your_aws_secret_key"
 
 # Configure terraform:
 cp openshift-terraform-ansible/ec2/terraform.tfvars.example openshift-terraform-ansible/ec2/terraform.tfvars
-
-# edit openshift-terraform-ansible/ec2/terraform.tfvars
 vi openshift-terraform-ansible/ec2/terraform.tfvars
-# specify correct keypair, master_instance_type, node_instance_type, ws_availability_zone, aws_regio
-n, aws_ami, num_nodes, key_path
 
 # Make sure that the key owner has following AWS permission:
 - AmazonEC2FullAccess
@@ -22,19 +18,17 @@ n, aws_ami, num_nodes, key_path
 - AmazonElasticCacheReadOnlyAccess
 - AmaonRDSReadOnlyAccess
 
-# TODO: prio 1: add rule(s) that allow(s) access from nodes to master and vice versa
-# TODO: using terraform, better create a new security rule!!
-# TODO: describe how to change permissions of the user, so he can use the script
-# TODO: create a git repository for the security rule scripts
-# TODO: add repository to the openshift-terraform-ansible_installer project as subproject
+# OV: obsolete for new main.tf with VPC and security rule generation:
+## Add SSH secrity rule and run terraform: cut&paste the next set of lines to the Linux command line:
+#/d/veits/Vagrant/ubuntu-trusty64-docker-aws-test/addSecurityRule.sh && \
 
-# Add SSH secrity rule and run terraform: cut&paste the next set of lines to the Linux command line:
-/d/veits/Vagrant/ubuntu-trusty64-docker-aws-test/addSecurityRule.sh && \
-terraform plan openshift-terraform-ansible/ec2 && \
-echo "execute? (y/n)"
-read a 
-[ "$a" == "y" -o "$a" == "yes] && \
-terraform apply openshift-terraform-ansible/ec2
+# Review Terraform plan:
+terraform plan -out=terraform.plan openshift-terraform-ansible/ec2
+# or if you want to log the readable output for later reference:
+tee >(terraform plan -out=terraform.plan openshift-terraform-ansible/ec2) | tee -a terraform.plan.readable
+
+# Run Terraform plan:
+terraform apply terraform.plan
 
 # start CentOS Docker image:
 cd .. && \
@@ -109,3 +103,11 @@ git clone https://github.com/openshift/openshift-ansible && \
 # 
 git clone https://github.com/CiscoCloud/terraform.py 
 
+# TODO:
+- conduct a e2e test with VPC
+- private key handling: e.g. create a directory named .config, and place .aws_creds file and aws private key there
+- automatic detection of IP_with_full_access (myIP)
+- replace static ami by map between regions and ami of CentOS 7
+- describe how to change permissions of the user, so he can use the script
+# TODO: create a git repository for the security rule scripts addSdecurity
+# TODO: add repository to the openshift-terraform-ansible_installer project as subproject
