@@ -7,6 +7,9 @@ vi .aws_creds
 aws_access_key="your_aws_access_key"
 aws_secret_key="your_aws_secret_key"
 
+# Apply AWS credentials:
+source .aws_creds
+
 # Configure terraform:
 cp openshift-terraform-ansible/ec2/terraform.tfvars.example openshift-terraform-ansible/ec2/terraform.tfvars
 vi openshift-terraform-ansible/ec2/terraform.tfvars
@@ -25,7 +28,7 @@ vi openshift-terraform-ansible/ec2/terraform.tfvars
 # Review Terraform plan:
 terraform plan -out=terraform.plan openshift-terraform-ansible/ec2
 # or if you want to log the readable output for later reference:
-tee >(terraform plan -out=terraform.plan openshift-terraform-ansible/ec2) | tee -a terraform.plan.readable
+tee >(terraform plan -out=terraform.plan openshift-terraform-ansible/ec2) | tee -a terraform.plan.log
 
 # Run Terraform plan:
 terraform apply terraform.plan
