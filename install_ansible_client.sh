@@ -42,13 +42,53 @@ fi
 #  cd ..
 
 DIR=/nfs/openshift-terraform-ansible_installer
+#DIR=/nfs
 cd $DIR || exit 1
 
 # openshift-terraform-ansible: Prep your environment:
 cp /nfs/veits/PC/PKI/AWS/AWS_SSH_Key.pem ~/AWS_SSH_Key.pem && chmod 600 ~/AWS_SSH_Key.pem && \
+export ANSIBLE_HOST_KEY_CHECKING=False && \
 ansible-playbook -i $DIR/terraform.py/terraform.py --private-key=~/AWS_SSH_Key.pem $DIR/openshift-terraform-ansible/ec2/ansible/ose3-prep-nodes.yml && \
 ansible-playbook -i $DIR/inventory --become --private-key=~/AWS_SSH_Key.pem $DIR/openshift-ansible/playbooks/byo/config.yml
 
 # for dynamic libraries, boto3 is needed:
-$SUDO $INSTALLER install -y boto3
+# see https://www.centos.org/forums/viewtopic.php?t=16608: clean all needed; otherwise boto3 not found
+echo $INSTALLER | grep -q yum && $SUDO yum clean all 
+# see http://stackoverflow.com/questions/2481287/how-do-i-install-boto
+#$SUDO $INSTALLER install -y boto3
+$SUDO $INSTALLER install -y python-boto
+
+# create an OpenShift user 'test' with random password:
+# random password generation from http://www.howtogeek.com/howto/30184/10-ways-to-generate-a-random-password-from-the-command-line/
+TESTPASSWD=`< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c6`
+MASTERIP=`cat ./terraform.tfstate | grep public_ip | awk -F '"' '{print $4; exit}'`
+MASTERDNS=`cat ./inventory | grep ec2- | awk -F '=' '{print $2; exit}'`
+SSHUSER=`cat ./inventory | grep 'ansible_ssh_user=' | awk -F '=' '{print $2;exit}'`
+
+#ssh -t -i ~/AWS_SSH_Key.pem ${SSHUSER}@${MASTERIP} sudo htpasswd -b /etc/origin/openshift-passwd test $TESTPASSWD && \
+ssh -t -i ~/AWS_SSH_Key.pem ${SSHUSER}@${MASTERIP} sudo htpasswd -b /etc/origin/openshift-passwd test $TESTPASSWD && \
+\
+SUCCESS=true || SUCCESS=false
+
+if [ "$SUCCESS" == "true" ]; then
+   echo "######################################################################"
+   echo '# OpenShift successfully installed!'
+   echo "# Try adding $MASTERDNS to your hosts file with IP address $MASTERIP"
+   echo "# and use a browser to connect to https://${MASTERDNS}:8443"
+   echo "# Log in as user 'test' with password '$TESTPASSWD'"
+   echo "#"
+   echo "# New users can be added by connecting to the master via"
+   echo "#   ssh -i ~/AWS_SSH_Key.pem ${SSHUSER}@${MASTERIP}"
+   echo "# and there:"
+   echo "#   sudo htpasswd -b /etc/origin/openshift-passwd test $TESTPASSWD"
+   echo "######################################################################"
+else
+   echo "######################################################################"
+   echo '# Could not create test user on OpenShift Master!!!'
+   echo "# Try connecting to the OpenShift master via:"
+   echo "#   ssh -i ~/AWS_SSH_Key.pem ${SSHUSER}@${MASTERIP}"
+   echo "# and try adding the user manually via:"
+   echo "#   sudo htpasswd -b /etc/origin/openshift-passwd test $TESTPASSWD"
+   echo "######################################################################"
+fi
 

@@ -1,0 +1,42 @@
+
+# AWS credentials
+aws_access_key = "AXXXXXXXXXXXXXXXXXX"
+aws_secret_key = "Sxxxxxxxxxxxxxxxxxxxxxxxx"
+keypair = "AWS_SSH_Key"
+key_path = "/mnt/nfs/veits/PC/PKI/AWS/AWS_SSH_Key.pem"
+
+# IP address that should have full access to master and nodes:
+IP_with_full_access = "1.1.1.1"
+
+# AWS region
+aws_region = "eu-central-1"
+aws_availability_zone = "eu-central-1a"
+
+# AWS VPC & subnet
+aws_vpc_openshift_cidr_block = "10.50.0.0/16"
+aws_subnet_openshift_master_nodes_cidr_block = "10.50.1.0/24"
+
+# AWS instances
+master_instance_type = "c3.large"
+node_instance_type = "c3.large"
+ebs_root_block_size = "50"
+# fedora 25:
+#aws_ami = "ami-a6a15dc9"
+# CentOS 7:
+aws_ami = "ami-9bf712f4"
+
+# AWS network & security
+security_group = "default"
+ssh_user = "centos"
+
+# Inline scripts
+
+# Fulfill Ansible prerequisites:
+#variable "installer" {default = "yum"}
+# for CentOS:
+variable "inline_script" {default = "sudo yum install -y python && returnvalue=$? && echo yum | grep -q dnf && sudo yum install -y python2-dnf || exit $returnvalue"}
+# for Fedora:
+#variable "inline_script" {default = "sudo dnf install -y python && returnvalue=$? && echo dnf | grep -q dnf && sudo dnf install -y python2-dnf || exit $returnvalue"}
+
+# Number of nodes
+num_nodes = "2"
