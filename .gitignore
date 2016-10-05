@@ -5,3 +5,4 @@ terraform.plan*
 *.swp
 *.swo
 inventory
+openshift-ansible.changed
