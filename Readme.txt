@@ -11,8 +11,11 @@ aws_secret_key="your_aws_secret_key"
 source .aws_creds
 
 # Configure terraform:
-cp openshift-terraform-ansible/ec2/terraform.tfvars.example openshift-terraform-ansible/ec2/terraform.tfvars
-vi openshift-terraform-ansible/ec2/terraform.tfvars
+export TF_VAR_aws_access_key=$AWS_ACCESS_KEY_ID
+export TF_VAR_aws_secret_key=$AWS_SECRET_ACCESS_KEY
+export TF_VAR_IP_with_full_access=`wget http://ipinfo.io/ip -qO -`
+cp terraform.tfvars.example terraform.tfvars
+vi terraform.tfvars
 
 # Make sure that the key owner has following AWS permission:
 - AmazonEC2FullAccess

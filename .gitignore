@@ -6,3 +6,4 @@ terraform.plan*
 *.swo
 inventory
 openshift-ansible.changed
+*.bak*
