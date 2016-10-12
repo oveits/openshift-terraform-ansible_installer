@@ -2,8 +2,9 @@
 # install terraform
 # see also https://hub.docker.com/r/hashicorp/terraform/~/dockerfile/
 
-TERRAFORM_VERSION=0.7.4
-TERRAFORM_SHA256SUM=8950ab77430d0ec04dc315f0d2d0433421221357b112d44aa33ed53cbf5838f6
+TERRAFORM_VERSION=0.7.5
+#TERRAFORM_SHA256SUM=8950ab77430d0ec04dc315f0d2d0433421221357b112d44aa33ed53cbf5838f6
+TERRAFORM_SHA256SUM=7def82015b3a9a1bab13b4548e4c8d4ac960322a815cff7d9ebf76ef74a4cb34
 
 
 # terraform already installed?

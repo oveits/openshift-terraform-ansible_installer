@@ -1,7 +1,7 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 
   # detect sudo:
-  sudo echo test 2>/dev/null && SUDO=sudo
+  sudo echo test 2>/dev/null 1>/dev/null && SUDO=sudo
   
   # detect installer:
   INSTALL=
