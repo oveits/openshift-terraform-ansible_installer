@@ -5,3 +5,10 @@ terraform.plan*
 *.swp
 *.swo
 inventory
+openshift-ansible.changed
+*.bak*
+old
+.aws/*
+!.aws/*example*
+*.log
+openshift-ansible_error_issue_2
