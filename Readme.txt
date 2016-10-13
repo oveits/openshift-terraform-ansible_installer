@@ -1,5 +1,46 @@
 Installing an OpenShift cluster on Amazon Web Services
 
+Prerequisites:
+- works only on Linux 
+  reason: git submodule openshift-ansible contains symbolic links that do not work on Windows; tested negatively on git bash
+  positively tested on Vagrant Ubuntu Linux with docker installed
+- You will need the private SSH key available of a user that has AmazonEC2FullAccess permissions for creating the resources
+- In our case, we will use the same key for creating the resources and for accessing the instances via SSH
+
+Step by Step:
+- On the Linux system, perform:
+  $ git clone --recursive https://github.com/oveits/openshift-terraform-ansible_installer
+  $ cd openshift-terraform-ansible_installer
+  $ bash 1_docker_create_aws_resources.sh
+    (edit files as appropriate)
+  $ cp inventory.example inventory
+  $ cat terraform.tfstate | grep ec2- | awk -F '"' '{print $4}'
+  ec2-52-57-51-241.eu-central-1.compute.amazonaws.com
+  ec2-52-57-112-189.eu-central-1.compute.amazonaws.com^
+- replace master DNS name by value in first line of the cat command output above
+- replace node DNS names by values in line 2 to n
+-  retrieve SSK_key.pem and copy it to .aws/SSK_key.pem
+  $ 2_docker_install_openshift_via_ansible.sh
+  (this step will take >~30 minutes)
+- if successful: write down the password of the test user
+- On a machine with Web Browser: add/change host entry for
+  52.57.62.152  master master.fuse.osecloud.com
+  - Windows hosts file path: C:\Windows\System32\drivers\etc\hosts
+    Note: if you are not administrator, you can copy the file to desktop, edit it there, and copy it back. You will be asked for Administrator password.
+  - Linux hosts file path: /etc/hosts
+- Connect to https://master.fuse.osecloud.com:8443 and log in as test user (with password as written down above)
+
+- for maintenance, ssh centos@ec2-52-57-51-241.eu-central-1.compute.amazonaws.com 
+  $ ssh -t -i ${key_path}  ${SSHUSER}@${MASTERIP} 
+  where default 
+  - key_path=.aws/SSH_Key.pem
+  - SSHUSER=centos
+  - MASTERIP is the IP address or DNS names you have find via 
+  $ cat terraform.tfstate | grep ec2- | awk -F '"' '{print $4}'
+
+##########################
+there might be obsolete information below this line
+
 # Specify AWS credentials:
 cp .aws_creds.example .aws_creds
 vi .aws_creds
