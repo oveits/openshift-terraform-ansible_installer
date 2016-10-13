@@ -135,7 +135,7 @@ if [ "$SUCCESS" == "true" ]; then
    echo "# Log in as user 'test' with password '$TESTPASSWD'"
    echo "#"
    echo "# New users can be added by connecting to the master via"
-   echo "#   ssh -i ~/AWS_SSH_Key.pem ${SSHUSER}@${MASTERIP}"
+   echo "#   ssh -t -i ${key_path} ${SSHUSER}@${MASTERIP}"
    echo "# and there:"
    echo "#   sudo htpasswd -b /etc/origin/openshift-passwd test $TESTPASSWD"
    echo "######################################################################"
@@ -143,7 +143,7 @@ else
    echo "######################################################################"
    echo '# Could not create test user on OpenShift Master!!!'
    echo "# Try connecting to the OpenShift master via:"
-   echo "#   ssh -i ~/AWS_SSH_Key.pem ${SSHUSER}@${MASTERIP}"
+   echo "#   ssh -t -i ${key_path} ${SSHUSER}@${MASTERIP}"
    echo "# and try adding the user manually via:"
    echo "#   sudo htpasswd -b /etc/origin/openshift-passwd test $TESTPASSWD"
    echo "######################################################################"

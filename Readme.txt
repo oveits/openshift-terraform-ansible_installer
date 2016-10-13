@@ -30,6 +30,7 @@ Step by Step:
   - Linux hosts file path: /etc/hosts
 - Connect to https://master.fuse.osecloud.com:8443 and log in as test user (with password as written down above)
 
+Maintenance of AWS instances:
 - for maintenance, ssh centos@ec2-52-57-51-241.eu-central-1.compute.amazonaws.com 
   $ ssh -t -i ${key_path}  ${SSHUSER}@${MASTERIP} 
   where default 
@@ -37,6 +38,20 @@ Step by Step:
   - SSHUSER=centos
   - MASTERIP is the IP address or DNS names you have find via 
   $ cat terraform.tfstate | grep ec2- | awk -F '"' '{print $4}'
+- Note: for Vagrant/VirtualBox users: there is a problem setting file permissions on VirtualBox synched folders. 
+        This may lead to WARNING: UNPROTECTED PRIVATE KEY FILE!
+        if the key file is located on such a synched folder.
+        Workaround: from within the Linux guest:
+        cp ${key_path} ~/mykey.pem && \
+          chmod 400 ~/mykey.pem && \
+          ssh -t -i ~/mykey.pem ${SSHUSER}@${MASTERIP} && \
+          rm ~/mykey.pem
+
+Deletion of AWS instances:
+  $ bash 1_docker_create_aws_resources.sh -destroy
+  (usually you do not need to change any file in this case)
+  and choose 'apply"
+
 
 ##########################
 there might be obsolete information below this line
