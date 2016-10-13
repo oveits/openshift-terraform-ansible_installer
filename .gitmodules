@@ -1,0 +1,13 @@
+[submodule "openshift-ansible"]
+   path = openshift-ansible
+   url = https://github.com/openshift/openshift-ansible
+
+[submodule "terraform.py"]
+   path = terraform.py 
+   url = https://github.com/CiscoCloud/terraform.py
+
+[submodule "openshift-terraform-ansible"]
+   path = openshift-terraform-ansible
+   url = https://github.com/christian-posta/openshift-terraform-ansible
+
+
