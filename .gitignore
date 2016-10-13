@@ -10,3 +10,5 @@ openshift-ansible.changed
 old
 .aws/*
 !.aws/*example*
+*.log
+openshift-ansible_error_issue_2

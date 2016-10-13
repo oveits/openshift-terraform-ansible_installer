@@ -1,6 +1,5 @@
 
-SKIPINSTALL=true
-SKIPPREPARE=true 
+SKIPINSTALL=false
 
 # commands needed on Centos or Fedora to install ansible client for installing openshift on AWS 
 # with project https://github.com/openshift/openshift-ansible
@@ -13,7 +12,7 @@ source ./detect_installer.sh
 # 1. read key_path from terraform.tfvars:
 grep "^key_path" terraform.tfvars | sed 's/ //g' > /tmp/key_path.sh 
 if [ $? -eq 0 ]; then
-  source /tmp/key_path.sh && rm /tmp/key_path.sh
+  source /tmp/key_path.sh && rm -f /tmp/key_path.sh
 else
   read -p "Could not read key_path from terraform.tfvars; Please enter path manually (q for quit):" key_path
     case "$key_path" in
@@ -88,13 +87,13 @@ ansible-playbook -i $DIR/terraform.py/terraform.py --private-key=${key_path} $DI
 #exit 1
 #cp -R $DIR/openshift-ansible/roles /etc/ansible/ && \
 #cp -p $DIR/openshift-ansible/ansible.cfg.example $DIR/ansible.cfg.example && \
-cp -p $DIR/openshift-ansible/ansible.cfg.example $DIR/openshift-ansible/ansible.cfg && \
+cp -pf $DIR/openshift-ansible/ansible.cfg.example $DIR/openshift-ansible/ansible.cfg && \
 #export ANSIBLE_CONFIG=$DIR/openshift-ansible/ansible.cfg.example && \
 #export ANSIBLE_CONFIG=$DIR/ansible.cfg.example && \
 export ANSIBLE_CONFIG=$DIR/openshift-ansible/ansible.cfg && \
 #cat $ANSIBLE_CONFIG | grep role && \
 #ansible-playbook -i $DIR/inventory --become --tag="always" --private-key=${key_path} $DIR/openshift-ansible/playbooks/byo/config.yml
-ansible-playbook -i $DIR/inventory --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/byo/config.yml
+ansible-playbook -i $DIR/inventory --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/byo/config.yml | tee $DIR/2_install_openshift_via_ansible.log
 ##roles_path = $DIR/openshift-ansible/roles/openshift_facts && \
 ##cp $DIR/openshift-ansible/utils/etc/ansible.cfg /etc/ansible/ansible.cfg
 #export ANSIBLE_CONFIG=$DIR/openshift-ansible/utils/etc/ansible.cfg
