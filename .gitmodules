@@ -1,0 +1,18 @@
+[submodule "openshift-ansible"]
+   path = openshift-ansible
+   url = https://github.com/openshift/openshift-ansible
+   branch = 2024a1005d963bf5fe58df04b3e97afe2190f1a7
+
+[submodule "terraform.py"]
+   path = terraform.py 
+   url = https://github.com/oveits/terraform.py
+   #branch = development
+   branch = 6b2320b7fff2b2a235c780d5d0e3faccbb068591
+
+[submodule "openshift-terraform-ansible"]
+   path = openshift-terraform-ansible
+   url = https://github.com/oveits/openshift-terraform-ansible
+   #branch = master
+   branch = 7e4ac43513d682ad0d7078db596c43bf311cfb8a
+
+
