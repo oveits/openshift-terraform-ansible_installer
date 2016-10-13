@@ -10,7 +10,7 @@ IMAGENAME="oveits/terraform_bash_wget"
 TAG="latest"
 PUSH=true
 IMAGESCRIPT="apk add --update bash && apk add --update wget && rm -rf /var/cache/apk/*"
-RUNSCRIPT="bash 1_create_aws_resources.sh"
+RUNSCRIPT="bash 1_create_aws_resources.sh $@"
 
 CURDIR=${PWD##*/}
 

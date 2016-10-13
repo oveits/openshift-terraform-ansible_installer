@@ -59,7 +59,7 @@ while true; do
   # with user input, we need, the following line, which hangs at the end until we send a return:
   #tee >(terraform plan -out=terraform.plan $DIR) | tee -a terraform.plan.log
   # without user input, this line works better:
-  terraform plan -out=terraform.plan $DIR | tee -a terraform.plan.log
+  terraform plan $@ -out=terraform.plan $DIR | tee -a terraform.plan.log
   read -p "Change/Apply plan? Note, that this might induce costs with your IaaS provider (change/apply/quit) " yn
   case "$yn" in
       [Cc]* ) echo entering variable file; vi terraform.tfvars; echo entering terraform plan file; vi $FILE;;

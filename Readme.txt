@@ -110,10 +110,11 @@ git clone https://github.com/openshift/openshift-ansible && \
 git clone https://github.com/CiscoCloud/terraform.py 
 
 # TODO:
-- conduct a e2e test with VPC
-- private key handling: e.g. create a directory named .config, and place .aws_creds file and aws private key there
-- automatic detection of IP_with_full_access (myIP)
+- conduct a e2e test with VPC -> done
+- private key handling: e.g. create a directory named .aws, and place credentials file and aws private key there -> done
+- automatic detection of IP_with_full_access (myIP) -> done
 - replace static ami by map between regions and ami of CentOS 7
 - describe how to change permissions of the user, so he can use the script
-# TODO: create a git repository for the security rule scripts addSdecurity
-# TODO: add repository to the openshift-terraform-ansible_installer project as subproject
+# TODO: 
+- create a git repository for the security rule scripts addSecurity -> not needed for this project, since security rule now is set by terraform
+- add addSecurity repository to the openshift-terraform-ansible_installer project as subproject -> not needed for this project, since security rule now is set by terraform
