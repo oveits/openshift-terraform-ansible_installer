@@ -1,5 +1,5 @@
 
-SKIPINSTALL=false
+SKIPINSTALL=true
 
 # commands needed on Centos or Fedora to install ansible client for installing openshift on AWS 
 # with project https://github.com/openshift/openshift-ansible
@@ -82,7 +82,9 @@ source /tmp/key_path.sh && rm /tmp/key_path.sh
 chmod 400 $key_path && \
 #cp /nfs/veits/PC/PKI/AWS/AWS_SSH_Key.pem ~/AWS_SSH_Key.pem && chmod 600 ~/AWS_SSH_Key.pem && \
 export ANSIBLE_HOST_KEY_CHECKING=False && \
+
 ansible-playbook -i $DIR/terraform.py/terraform.py --private-key=${key_path} $DIR/openshift-terraform-ansible/ec2/ansible/ose3-prep-nodes.yml && \
+
 #echo "stopping here" && \
 #exit 1
 #cp -R $DIR/openshift-ansible/roles /etc/ansible/ && \
@@ -93,7 +95,9 @@ cp -pf $DIR/openshift-ansible/ansible.cfg.example $DIR/openshift-ansible/ansible
 export ANSIBLE_CONFIG=$DIR/openshift-ansible/ansible.cfg && \
 #cat $ANSIBLE_CONFIG | grep role && \
 #ansible-playbook -i $DIR/inventory --become --tag="always" --private-key=${key_path} $DIR/openshift-ansible/playbooks/byo/config.yml
+
 ansible-playbook -i $DIR/inventory --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/byo/config.yml | tee $DIR/2_install_openshift_via_ansible.log
+
 ##roles_path = $DIR/openshift-ansible/roles/openshift_facts && \
 ##cp $DIR/openshift-ansible/utils/etc/ansible.cfg /etc/ansible/ansible.cfg
 #export ANSIBLE_CONFIG=$DIR/openshift-ansible/utils/etc/ansible.cfg
