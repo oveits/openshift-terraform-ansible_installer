@@ -1,7 +1,7 @@
 [submodule "openshift-ansible"]
    path = openshift-ansible
    url = https://github.com/openshift/openshift-ansible
-   branch = 2024a1005d963bf5fe58df04b3e97afe2190f1a7
+   branch = 6387420b77e5d458dfb8dc6b4a821cca28b9c5a8
 
 [submodule "terraform.py"]
    path = terraform.py 
