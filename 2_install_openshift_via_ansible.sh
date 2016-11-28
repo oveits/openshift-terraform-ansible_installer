@@ -143,7 +143,7 @@ echo $INSTALL | grep -q yum && $SUDO yum clean all
 # create an OpenShift user 'test' with random password:
 # random password generation from http://www.howtogeek.com/howto/30184/10-ways-to-generate-a-random-password-from-the-command-line/
 TESTPASSWD=`< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c6`
-MASTERIP=`cat ./terraform.tfstate | grep public_ip | awk -F '"' '{print $4; exit}'`
+MASTERIP=`cat ./terraform.tfstate | grep '"public_ip"' | awk -F '"' '{print $4; exit}'`
 MASTERDNS=`cat ./inventory | grep ec2- | awk -F '=' '{print $2; exit}'`
 SSHUSER=`cat ./inventory | grep 'ansible_ssh_user=' | awk -F '=' '{print $2;exit}'`
 
