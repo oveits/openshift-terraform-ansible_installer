@@ -3,7 +3,7 @@ cd `dirname $0`
 
 # preparing inventory:
 MASTER=`cat terraform.tfstate | grep ec2- | awk -F '"' '{print $4; exit}'`
-NODES=`cat terraform.tfstate | grep ec2- | awk -F '"' -v master="$MASTER" ' $0 !~ master { print $4" openshift_node_labels=\"{'region': 'infra', 'zone': 'default'}\"" }'`
+NODES=`cat terraform.tfstate | grep ec2- | awk -F '"' -v master="$MASTER" ' $0 !~ master { print $4" openshift_node_labels=\"{'\''region'\'': '\''infra'\'', '\''zone'\'': '\''default'\''}\"" }'`
 
 cat inventory | sed "s/^[^ ]* openshift_public_hostname/$MASTER openshift_public_hostname/" > inventory.tmp
 cat inventory.tmp | awk '!/openshift_node_labels/' > inventory.tmp2
