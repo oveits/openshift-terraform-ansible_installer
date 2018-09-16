@@ -8,6 +8,7 @@ source ./detect_installer.sh
 
 # install terraform:
 terraform -version || ( echo "terraform not found on the system; installing terraform" && ./install_terraform.sh )
+terraform init openshift-terraform-ansible/ec2/
 
 FILES=".aws/credentials terraform.tfvars"
 
