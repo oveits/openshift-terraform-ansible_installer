@@ -4,12 +4,21 @@
 # the container is mapping the working directory to /app
 #
 
-BASEIMAGE=centos
+#BASEIMAGE=centos:6
+BASEIMAGE=centos:7
 CONTAINERNAME=centos_ansible
 IMAGENAME="oveits/centos_ansible"
 TAG="latest"
 PUSH=true
-IMAGESCRIPT="yum install -y epel-release; yum -y update; yum install -y bash; yum install -y wget; yum install -y openssh-clients; yum install -y ansible; yum install -y pyOpenSSL; yum install -y python-cryptography; yum install -y python-boto; yum install -y git"
+
+# latest ansible:
+#IMAGESCRIPT="yum install -y epel-release; yum -y update; yum install -y bash; yum install -y wget; yum install -y openssh-clients; yum install -y ansible; yum install -y pyOpenSSL; yum install -y python-cryptography; yum install -y python-boto; yum install -y git"
+
+# ansible v2.3.2:
+IMAGESCRIPT="yum install -y epel-release; yum -y update; yum install -y bash; yum install -y wget; yum install -y openssh-clients; echo yum install -y ansible-2.4.2.0-2.el7.noarch; yum install -y pyOpenSSL; yum install -y python-cryptography; yum install -y python-boto; yum install -y git; echo curl -O http://cbs.centos.org/kojifiles/packages/ansible/2.3.2.0/2.el7/noarch/ansible-2.3.2.0-2.el7.noarch.rpm && yum localinstall -y ansible-2.3.2.0-2.el7.noarch.rpm"
+
+# ansible v.2.2 (requires python 2.6, which requires centos:6 base image): (DOES NOT WORK. USE oveits/centos_ansible:2016-11 instead!)
+#IMAGESCRIPT="yum install -y epel-release; yum -y update; yum install -y bash; yum install -y wget; yum install -y openssh-clients; yum install -y pyOpenSSL; curl -O http://mirror.centos.org/centos/6/os/x86_64/Packages/python-2.6.6-66.el6_8.x86_64.rpm && yum localinstall -y python-2.6.6-66.el6_8.x86_64.rpm; yum install -y python-cryptography; yum install -y git; curl -O http://cbs.centos.org/kojifiles/packages/ansible/2.2.0.0/3.el6/noarch/ansible-2.2.0.0-3.el6.noarch.rpm && yum localinstall -y ansible-2.2.0.0-3.el6.noarch.rpm"
 RUNSCRIPT="bash 2_install_openshift_via_ansible.sh"
 
 CURDIR=${PWD##*/}
