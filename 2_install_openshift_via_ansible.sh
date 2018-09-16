@@ -1,4 +1,5 @@
 
+
 SKIPINSTALL=true
 
 # commands needed on Centos or Fedora to install ansible client for installing openshift on AWS 
@@ -53,15 +54,17 @@ fi
 
 echo "$INSTALL" | grep -q "apt-get"
 if [ $? -eq 0 ]; then
+  echo installing ansible from source
   # ubuntu: ansible installation from source needed because `apt-get install ansible` installs version 2.0.0, which is too old
   git clone git://github.com/ansible/ansible.git --recursive
   cd ./ansible
   source ./hacking/env-setup
   ansible --version
 else
-  $INSTALL ansible
+  # the openshift installer requires an old version of ansible, so ansible must not be upgraded if it is already installed.
+  # therefore, we skip the installation, if ansible is already installed.
+  ansible --version || $INSTALL ansible
 fi
-#exit
 
 #git clone https://github.com/openshift/openshift-ansible 
 #  cd openshift-ansible && \
@@ -96,7 +99,7 @@ export ANSIBLE_CONFIG=$DIR/openshift-ansible/ansible.cfg && \
 #cat $ANSIBLE_CONFIG | grep role && \
 #ansible-playbook -i $DIR/inventory --become --tag="always" --private-key=${key_path} $DIR/openshift-ansible/playbooks/byo/config.yml
 
-ansible-playbook -i $DIR/inventory --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/byo/config.yml | tee $DIR/2_install_openshift_via_ansible.log
+ansible-playbook -i $DIR/inventory -v --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/byo/config.yml | tee $DIR/2_install_openshift_via_ansible.log
 
 ##roles_path = $DIR/openshift-ansible/roles/openshift_facts && \
 ##cp $DIR/openshift-ansible/utils/etc/ansible.cfg /etc/ansible/ansible.cfg
@@ -118,7 +121,7 @@ echo $INSTALL | grep -q yum && $SUDO yum clean all
 # create an OpenShift user 'test' with random password:
 # random password generation from http://www.howtogeek.com/howto/30184/10-ways-to-generate-a-random-password-from-the-command-line/
 TESTPASSWD=`< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c6`
-MASTERIP=`cat ./terraform.tfstate | grep public_ip | awk -F '"' '{print $4; exit}'`
+MASTERIP=`cat ./terraform.tfstate | grep \"public_ip\" | awk -F '"' '{print $4; exit}'`
 MASTERDNS=`cat ./inventory | grep ec2- | awk -F '=' '{print $2; exit}'`
 SSHUSER=`cat ./inventory | grep 'ansible_ssh_user=' | awk -F '=' '{print $2;exit}'`
 
