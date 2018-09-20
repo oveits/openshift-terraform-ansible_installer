@@ -13,3 +13,4 @@ old
 *.log
 openshift-ansible_error_issue_2
 *.tmp
+*.rpm
