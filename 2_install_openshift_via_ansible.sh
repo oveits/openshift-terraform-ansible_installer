@@ -2,6 +2,8 @@
 cd `dirname $0`
 
 # preparing inventory:
+#cp -pf $DIR/openshift-ansible/inventory/hosts.example  inventory
+
 MASTER=`cat terraform.tfstate | grep ec2- | awk -F '"' '{print $4; exit}'`
 NODES=`cat terraform.tfstate | grep ec2- | awk -F '"' -v master="$MASTER" ' $0 !~ master { print $4" openshift_node_labels=\"{'\''region'\'': '\''infra'\'', '\''zone'\'': '\''default'\''}\"" }'`
 
@@ -114,14 +116,16 @@ ansible-playbook -i $DIR/terraform.py/terraform.py --private-key=${key_path} $DI
 #exit 1
 #cp -R $DIR/openshift-ansible/roles /etc/ansible/ && \
 #cp -p $DIR/openshift-ansible/ansible.cfg.example $DIR/ansible.cfg.example && \
-cp -pf $DIR/openshift-ansible/ansible.cfg.example $DIR/openshift-ansible/ansible.cfg && \
+#cp -pf $DIR/openshift-ansible/ansible.cfg.example $DIR/openshift-ansible/ansible.cfg && \
+#cp -pf $DIR/openshift-ansible/playbooks/ansible.cfg.example $DIR/openshift-ansible/ansible.cfg && \
 #export ANSIBLE_CONFIG=$DIR/openshift-ansible/ansible.cfg.example && \
 #export ANSIBLE_CONFIG=$DIR/ansible.cfg.example && \
 export ANSIBLE_CONFIG=$DIR/openshift-ansible/ansible.cfg && \
 #cat $ANSIBLE_CONFIG | grep role && \
 #ansible-playbook -i $DIR/inventory --become --tag="always" --private-key=${key_path} $DIR/openshift-ansible/playbooks/byo/config.yml
 
-ansible-playbook -i $DIR/inventory --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/byo/config.yml | tee $DIR/2_install_openshift_via_ansible.log
+#ansible-playbook -i $DIR/inventory --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/byo/config.yml | tee $DIR/2_install_openshift_via_ansible.log
+ansible-playbook -i $DIR/inventory --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/prerequisites.yml | tee $DIR/2_install_openshift_via_ansible.log
 
 ##roles_path = $DIR/openshift-ansible/roles/openshift_facts && \
 ##cp $DIR/openshift-ansible/utils/etc/ansible.cfg /etc/ansible/ansible.cfg

@@ -4,12 +4,12 @@
 # the container is mapping the working directory to /app
 #
 
-BASEIMAGE=centos
+BASEIMAGE=centos:7
 CONTAINERNAME=centos_ansible
 IMAGENAME="oveits/centos_ansible"
 TAG="latest"
 PUSH=true
-IMAGESCRIPT="yum install -y epel-release; yum -y update; yum install -y bash; yum install -y wget; yum install -y openssh-clients; yum install -y ansible; yum install -y pyOpenSSL; yum install -y python-cryptography; yum install -y python-boto; yum install -y git"
+IMAGESCRIPT="yum install -y epel-release; yum -y update; yum install -y bash; yum install -y wget; yum install -y openssh-clients; yum install -y ansible; yum install -y pyOpenSSL; yum install -y python-cryptography; yum install -y python-boto; yum install -y git; yum install -y jq"
 RUNSCRIPT="bash 2_install_openshift_via_ansible.sh"
 
 CURDIR=${PWD##*/}
