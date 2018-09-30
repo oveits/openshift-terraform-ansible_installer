@@ -152,9 +152,14 @@ MASTERDNS=`cat ./inventory | grep ec2- | awk -F '=' '{print $2; exit}'`
 SSHUSER=`cat ./inventory | grep 'ansible_ssh_user=' | awk -F '=' '{print $2;exit}'`
 
 #ssh -t -i ~/AWS_SSH_Key.pem ${SSHUSER}@${MASTERIP} sudo htpasswd -b /etc/origin/openshift-passwd test $TESTPASSWD && \
-ssh -t -i ${key_path}  ${SSHUSER}@${MASTERIP} sudo htpasswd -b /etc/origin/openshift-passwd test $TESTPASSWD && \
-\
-SUCCESS=true || SUCCESS=false
+echo "ssh -t -i ${key_path}  ${SSHUSER}@${MASTERIP} sudo htpasswd -cb /etc/origin/openshift-passwd test $TESTPASSWD"
+#ssh -t -i ${key_path}  ${SSHUSER}@${MASTERIP} sudo htpasswd -cb /etc/origin/openshift-passwd test $TESTPASSWD && \
+ssh -t -i ${key_path}  ${SSHUSER}@${MASTERIP} <<EOSSHCOMMAND
+sudo mkdir /etc/origin
+sudo htpasswd -cb /etc/origin/openshift-passwd test $TESTPASSWD
+EOSSHCOMMAND
+
+[ $? == 0 ] && SUCCESS=true || SUCCESS=false
 
 if [ "$SUCCESS" == "true" ]; then
    echo "######################################################################"
