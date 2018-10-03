@@ -1,17 +1,32 @@
 
 cd `dirname $0`
 
+ansible --version
+
+sleep 10
+
 # preparing inventory:
 #cp -pf $DIR/openshift-ansible/inventory/hosts.example  inventory
 
+#INVENTORY=inventory
+INVENTORY=inventory.one-in-all
+
 MASTER=`cat terraform.tfstate | grep ec2- | awk -F '"' '{print $4; exit}'`
 NODES=`cat terraform.tfstate | grep ec2- | awk -F '"' -v master="$MASTER" ' $0 !~ master { print $4" openshift_node_labels=\"{'\''region'\'': '\''infra'\'', '\''zone'\'': '\''default'\''}\"" }'`
+yum install jq -y
+export MASTER_PUBLIC_IP=$(cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "masters")) | .[0] .primary.attributes."public_ip"')
+export MASTER_PRIVATE_IP=$(cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "masters")) | .[0] .primary.attributes."private_ip"')
 
 cat inventory | sed "s/^[^ ]* openshift_public_hostname/$MASTER openshift_public_hostname/" > inventory.tmp
 cat inventory.tmp | awk '!/openshift_node_labels/' > inventory.tmp2
 echo "$NODES" >> inventory.tmp2
 mv inventory.tmp2 inventory
 #exit
+
+yum install gettext -y
+envsubst < inventory.one-in-all.ini > inventory.one-in-all
+
+
 
 SKIPINSTALL=true
 
@@ -122,10 +137,28 @@ ansible-playbook -i $DIR/terraform.py/terraform.py --private-key=${key_path} $DI
 #export ANSIBLE_CONFIG=$DIR/ansible.cfg.example && \
 export ANSIBLE_CONFIG=$DIR/openshift-ansible/ansible.cfg && \
 #cat $ANSIBLE_CONFIG | grep role && \
-#ansible-playbook -i $DIR/inventory --become --tag="always" --private-key=${key_path} $DIR/openshift-ansible/playbooks/byo/config.yml
+#ansible-playbook -i $DIR/${INVENTORY} --become --tag="always" --private-key=${key_path} $DIR/openshift-ansible/playbooks/byo/config.yml
 
-#ansible-playbook -i $DIR/inventory --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/byo/config.yml | tee $DIR/2_install_openshift_via_ansible.log
-ansible-playbook -i $DIR/inventory --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/prerequisites.yml | tee $DIR/2_install_openshift_via_ansible.log
+#ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/byo/config.yml | tee $DIR/log/2_install_openshift_via_ansible.log
+
+# temporarily added for quicker feedback on current failures:
+# ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/openshift-master/additional_config.yml
+
+##### TODO: describe or automate workaround on https://stackoverflow.com/questions/45461307/selinux-is-not-supported-with-the-overlay-graph-driver
+# echo 'DOCKER_STORAGE_OPTIONS="--storage-driver devicemapper "' | sudo tee /etc/sysconfig/docker-storage
+# echo 'STORAGE_DRIVER=devicemapper' | sudo tee /etc/sysconfig/docker-storage-setup
+ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/prerequisites.yml -vvv | tee $DIR/log/2_install_openshift_via_ansible.log
+echo "ssh -t -i ${key_path}  centos@${MASTER_PUBLIC_IP} <<EOSSHCOMMAND397459 ..."
+# ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/openshift-master/config.yml -vvv 
+ssh -o "StrictHostKeyChecking=no" -t -i ${key_path}  centos@${MASTER_PUBLIC_IP} <<EOSSHCOMMAND397459
+sudo mkdir -p /etc/origin/master/
+sudo touch /etc/origin/master/htpasswd
+sudo chmod 666 /etc/origin/master/htpasswd
+EOSSHCOMMAND397459
+
+#exit
+
+ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/deploy_cluster.yml -vvvvv | tee -a $DIR/log/2_install_openshift_via_ansible.log
 
 ##roles_path = $DIR/openshift-ansible/roles/openshift_facts && \
 ##cp $DIR/openshift-ansible/utils/etc/ansible.cfg /etc/ansible/ansible.cfg
@@ -134,8 +167,8 @@ ansible-playbook -i $DIR/inventory --become --private-key=${key_path} $DIR/opens
 #grep role_path $ANSIBLE_CONFIG 2>&1
 ##cat /etc/ansible/ansible.cfg
 #echo "pwd=`pwd`"
-#ansible-playbook -i $DIR/inventory --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/byo/config.yml
-##ansible-playbook -i $DIR/inventory --tags "always" --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/byo/config.yml
+#ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/byo/config.yml
+##ansible-playbook -i $DIR/${INVENTORY} --tags "always" --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/byo/config.yml
 
 # for dynamic libraries, boto3 is needed:
 # see https://www.centos.org/forums/viewtopic.php?t=16608: clean all needed; otherwise boto3 not found
@@ -148,8 +181,8 @@ echo $INSTALL | grep -q yum && $SUDO yum clean all
 # random password generation from http://www.howtogeek.com/howto/30184/10-ways-to-generate-a-random-password-from-the-command-line/
 TESTPASSWD=`< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c6`
 MASTERIP=`cat ./terraform.tfstate | grep '"public_ip"' | awk -F '"' '{print $4; exit}'`
-MASTERDNS=`cat ./inventory | grep ec2- | awk -F '=' '{print $2; exit}'`
-SSHUSER=`cat ./inventory | grep 'ansible_ssh_user=' | awk -F '=' '{print $2;exit}'`
+MASTERDNS=`cat ./${INVENTORY} | grep ec2- | awk -F '=' '{print $2; exit}'`
+SSHUSER=`cat ./${INVENTORY} | grep 'ansible_ssh_user=' | awk -F '=' '{print $2;exit}'`
 
 #ssh -t -i ~/AWS_SSH_Key.pem ${SSHUSER}@${MASTERIP} sudo htpasswd -b /etc/origin/openshift-passwd test $TESTPASSWD && \
 echo "ssh -t -i ${key_path}  ${SSHUSER}@${MASTERIP} sudo htpasswd -cb /etc/origin/openshift-passwd test $TESTPASSWD"
