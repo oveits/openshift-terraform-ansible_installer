@@ -31,7 +31,7 @@ sleep 10
 #cp -pf $DIR/openshift-ansible/inventory/hosts.example  inventory
 
 #INVENTORY=inventory
-INVENTORY=inventory.one-in-all
+INVENTORY=inventory.all-in-one
 
 MASTER=`cat terraform.tfstate | grep ec2- | awk -F '"' '{print $4; exit}'`
 NODES=`cat terraform.tfstate | grep ec2- | awk -F '"' -v master="$MASTER" ' $0 !~ master { print $4" openshift_node_labels=\"{'\''region'\'': '\''infra'\'', '\''zone'\'': '\''default'\''}\"" }'`
@@ -48,7 +48,7 @@ mv inventory.tmp2 inventory
 #exit
 
 yum install gettext -y
-envsubst < inventory.one-in-all.ini > inventory.one-in-all
+envsubst < ${INVENTORY}.ini > ${INVENTORY}
 
 
 
