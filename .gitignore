@@ -4,7 +4,7 @@ terraform.tfstate*
 terraform.plan*
 *.swp
 *.swo
-#inventory
+inventory
 openshift-ansible.changed
 *.bak*
 old
