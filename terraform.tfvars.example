@@ -16,7 +16,8 @@ ebs_root_block_size = "50"
 # fedora 25:
 #aws_ami = "ami-a6a15dc9"
 # CentOS 7:
-aws_ami = "ami-9bf712f4"
+#aws_ami = "ami-9bf712f4"
+aws_ami = "ami-dd3c0f36"
 
 # AWS network & security
 #security_group = "default"
