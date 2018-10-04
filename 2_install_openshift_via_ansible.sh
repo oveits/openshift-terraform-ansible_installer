@@ -41,6 +41,11 @@ export MASTER_PRIVATE_IP=$(cat terraform.tfstate | jq -r '.modules[0].resources 
 export MASTER_PUBLIC_DNS=$(cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "masters")) | .[0] .primary.attributes."public_dns"')
 export MASTER_PRIVATE_DNS=$(cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "masters")) | .[0] .primary.attributes."private_dns"')
 
+export NODE_PUBLIC_IP=$(cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "nodes")) | .[0] .primary.attributes."public_ip"')
+export NODE_PRIVATE_IP=$(cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "nodes")) | .[0] .primary.attributes."private_ip"')
+export NODE_PUBLIC_DNS=$(cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "nodes")) | .[0] .primary.attributes."public_dns"')
+export NODE_PRIVATE_DNS=$(cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "nodes")) | .[0] .primary.attributes."private_dns"')
+
 #cat inventory | sed "s/^[^ ]* openshift_public_hostname/$MASTER openshift_public_hostname/" > inventory.tmp
 #cat inventory.tmp | awk '!/openshift_node_labels/' > inventory.tmp2
 #echo "$NODES" >> inventory.tmp2
