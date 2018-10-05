@@ -237,7 +237,7 @@ OPENSHIFT_PUBLIC_HOSTNAME=$(grep openshift_public_hostname $INVENTORY | awk -F '
 
 if [ "$SUCCESS" == "true" ]; then
    echo "######################################################################"
-   echo "# OpenShift successfully installed!"
+   echo '# OpenShift successfully installed!'
    echo "# Use a browser to connect to https://${OPENSHIFT_PUBLIC_HOSTNAME}:8443"
    echo "# If $OPENSHIFT_PUBLIC_HOSTNAME is not reachable, try adding $OPENSHIFT_PUBLIC_HOSTNAME to your hosts file with IP address $MASTERIP" and make sure the connection is not blocked by a firewall"
    echo "#"
@@ -260,8 +260,8 @@ else
 fi
 
 if [ "$SUCCESS" == "true" ]; then
-   read a -p "We will now add a cluster admin (press return to continue)"
-   read ADMINPASSWD -p "(type in the admin's password)"
+   read -p "We will now add a cluster admin (press return to continue)" a 
+   read -p "(type in the admin's password) " ADMINPASSWD 
    ssh -t -i ${key_path}  ${SSHUSER}@${MASTERIP} <<EOSSHCOMMAND38428
       sudo htpasswd -b /etc/origin/master/htpasswd admin $ADMINPASSWD
       oc adm policy add-cluster-role-to-user cluster-admin admin
