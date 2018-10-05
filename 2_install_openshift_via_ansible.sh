@@ -25,7 +25,7 @@ cd `dirname $0`
 
 ansible --version
 
-sleep 10
+sleep 1
 
 # preparing inventory:
 #cp -pf $DIR/openshift-ansible/inventory/hosts.example  inventory
@@ -41,23 +41,31 @@ export MASTER_PRIVATE_IP=$(cat terraform.tfstate | jq -r '.modules[0].resources 
 export MASTER_PUBLIC_DNS=$(cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "masters")) | .[0] .primary.attributes."public_dns"')
 export MASTER_PRIVATE_DNS=$(cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "masters")) | .[0] .primary.attributes."private_dns"')
 
-export NODE_PUBLIC_IP=$(cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "nodes")) | .[0] .primary.attributes."public_ip"')
-export NODE_PRIVATE_IP=$(cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "nodes")) | .[0] .primary.attributes."private_ip"')
-export NODE_PUBLIC_DNS=$(cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "nodes")) | .[0] .primary.attributes."public_dns"')
-export NODE_PRIVATE_DNS=$(cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "nodes")) | .[0] .primary.attributes."private_dns"')
+for i in `seq 0 100000`;
+do
+  # find node info from terraform.tfstate:
+  NODE_PUBLIC_IP=$(cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "nodes")) | .['$i'] .primary.attributes."public_ip"')
+  NODE_PRIVATE_IP=$(cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "nodes")) | .['$i'] .primary.attributes."private_ip"')
+  NODE_PUBLIC_DNS=$(cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "nodes")) | .['$i'] .primary.attributes."public_dns"')
+  NODE_PRIVATE_DNS=$(cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "nodes")) | .['$i'] .primary.attributes."private_dns"')
 
-#cat inventory | sed "s/^[^ ]* openshift_public_hostname/$MASTER openshift_public_hostname/" > inventory.tmp
-#cat inventory.tmp | awk '!/openshift_node_labels/' > inventory.tmp2
-#echo "$NODES" >> inventory.tmp2
-#mv inventory.tmp2 inventory
-##exit
+  # break, if NODE_PRIVATE_IP not found:
+  [ "${NODE_PRIVATE_IP}" == "null" ] && echo "stopping for loop at i=$i" && break
 
+  # create NODE_ENTRY:
+  NODE_ENTRY="${NODE_PUBLIC_IP} openshift_ip=${NODE_PRIVATE_IP} openshift_schedulable=true openshift_node_group_name=\"node-config-compute\""
+  	# echo "$NODE_ENTRY"
+
+  # create NODE_ENTRIES variable that will be used in inventory.ini file:
+  [ "$NODE_ENTRIES" == "" ] && export NODE_ENTRIES=$NODE_ENTRY || export NODE_ENTRIES="$NODE_ENTRIES"$'\n'"$NODE_ENTRY"
+  	# echo "NODE_ENTRIES=$NODE_ENTRIES"
+
+done
+
+# create inventory file from template:
 yum install gettext -y
 envsubst < ${INVENTORY}.ini > ${INVENTORY}
 
-
-
-SKIPINSTALL=true
 
 # commands needed on Centos or Fedora to install ansible client for installing openshift on AWS 
 # with project https://github.com/openshift/openshift-ansible
@@ -115,6 +123,7 @@ source ./read_key_file.sh
 # for CentOS, (which is using yum as installer) the epel-release repo is needed: see http://stackoverflow.com/questions/32048021/yum-what-is-the-message-no-package-ansible-available
 #echo $INSTALL 
 
+SKIPINSTALL=true
 if [ "$SKIPINSTALL" == ""  ]; then
   echo $INSTALL | grep -q yum && $INSTALL epel-release
   $INSTALL ansible-2.1.0.0  || $INSTALL ansible
@@ -122,6 +131,7 @@ if [ "$SKIPINSTALL" == ""  ]; then
   $INSTALL git
 fi
 
+# for systems using apt-get (e.g. ubuntu), we install ansible from source:
 echo "$INSTALL" | grep -q "apt-get"
 if [ $? -eq 0 ]; then
   # ubuntu: ansible installation from source needed because `apt-get install ansible` installs version 2.0.0, which is too old
@@ -133,11 +143,6 @@ else
   $INSTALL ansible
 fi
 #exit
-
-#git clone https://github.com/openshift/openshift-ansible 
-#  cd openshift-ansible && \
-#  bin/cluster list aws ''
-#  cd ..
 
 DIR=.
 #DIR=/app
