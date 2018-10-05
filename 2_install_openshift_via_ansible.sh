@@ -224,18 +224,17 @@ SSHUSER=`cat ./${INVENTORY} | grep 'ansible_ssh_user=' | awk -F '=' '{print $2;e
 #ssh -t -i ~/AWS_SSH_Key.pem ${SSHUSER}@${MASTERIP} sudo htpasswd -b /etc/origin/openshift-passwd test $TESTPASSWD && \
 echo "ssh -t -i ${key_path}  ${SSHUSER}@${MASTERIP} sudo htpasswd -cb /etc/origin/openshift-passwd test $TESTPASSWD"
 #ssh -t -i ${key_path}  ${SSHUSER}@${MASTERIP} sudo htpasswd -cb /etc/origin/openshift-passwd test $TESTPASSWD && \
-ssh -t -i ${key_path}  ${SSHUSER}@${MASTERIP} <<EOSSHCOMMAND
+ssh -t -i ${key_path}  ${SSHUSER}@${MASTERIP} <<EOSSHCOMMAND93458924
 #sudo mkdir /etc/origin
 #sudo htpasswd -cb /etc/origin/openshift-passwd test $TESTPASSWD
 sudo htpasswd -b /etc/origin/master/htpasswd test $TESTPASSWD
-EOSSHCOMMAND
-
-OPENSHIFT_PUBLIC_HOSTNAME=$(grep openshift_public_hostname $INVENTORY | awk -F '=' '{print $2}')
-[ "$OPENSHIFT_PUBLIC_HOSTNAME" == "" ] && OPENSHIFT_PUBLIC_HOSTNAME=${MASTERDNS}
+EOSSHCOMMAND93458924
 
 [ $? == 0 ] && SUCCESS=true || SUCCESS=false
 
 if [ "$SUCCESS" == "true" ]; then
+   OPENSHIFT_PUBLIC_HOSTNAME=$(grep openshift_public_hostname $INVENTORY | awk -F '=' '{print $2}')
+   [ "$OPENSHIFT_PUBLIC_HOSTNAME" == "" ] && OPENSHIFT_PUBLIC_HOSTNAME=${MASTERDNS}
    echo "######################################################################"
    echo '# OpenShift successfully installed!'
    echo "# Use a browser to connect to https://${OPENSHIFT_PUBLIC_HOSTNAME}:8443"
