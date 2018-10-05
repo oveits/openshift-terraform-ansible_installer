@@ -230,13 +230,17 @@ ssh -t -i ${key_path}  ${SSHUSER}@${MASTERIP} <<EOSSHCOMMAND
 sudo htpasswd -b /etc/origin/master/htpasswd test $TESTPASSWD
 EOSSHCOMMAND
 
+OPENSHIFT_PUBLIC_HOSTNAME=$(grep openshift_public_hostname $INVENTORY | awk -F '=' '{print $2}')
+[ "$OPENSHIFT_PUBLIC_HOSTNAME" == "" ] && OPENSHIFT_PUBLIC_HOSTNAME=${MASTERDNS}
+
 [ $? == 0 ] && SUCCESS=true || SUCCESS=false
 
 if [ "$SUCCESS" == "true" ]; then
    echo "######################################################################"
-   echo '# OpenShift successfully installed!'
-   echo "# Try adding $MASTERDNS to your hosts file with IP address $MASTERIP"
-   echo "# and use a browser to connect to https://${MASTERDNS}:8443"
+   echo "# OpenShift successfully installed!"
+   echo "# Use a browser to connect to https://${OPENSHIFT_PUBLIC_HOSTNAME}:8443"
+   echo "# If $OPENSHIFT_PUBLIC_HOSTNAME is not reachable, try adding $OPENSHIFT_PUBLIC_HOSTNAME to your hosts file with IP address $MASTERIP" and make sure the connection is not blocked by a firewall"
+   echo "#"
    echo "# Log in as user 'test' with password '$TESTPASSWD'"
    echo "#"
    echo "# New users can be added by connecting to the master via"
@@ -244,6 +248,7 @@ if [ "$SUCCESS" == "true" ]; then
    echo "# and there:"
    echo "#   sudo htpasswd -b /etc/origin/openshift-passwd test $TESTPASSWD"
    echo "######################################################################"
+
 else
    echo "######################################################################"
    echo '# Could not create test user on OpenShift Master!!!'
@@ -253,4 +258,14 @@ else
    echo "#   sudo htpasswd -b /etc/origin/openshift-passwd test $TESTPASSWD"
    echo "######################################################################"
 fi
+
+if [ "$SUCCESS" == "true" ]; then
+   read a -p "We will now add a cluster admin (press return to continue)"
+   read ADMINPASSWD -p "(type in the admin's password)"
+   ssh -t -i ${key_path}  ${SSHUSER}@${MASTERIP} <<EOSSHCOMMAND38428
+      sudo htpasswd -b /etc/origin/master/htpasswd admin $ADMINPASSWD
+      oc adm policy add-cluster-role-to-user cluster-admin admin
+EOSSHCOMMAND38428
+fi
+
 

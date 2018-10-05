@@ -4,6 +4,7 @@
 # the container is mapping the working directory to /app
 #
 
+PULL=true
 BASEIMAGE=centos:7
 CONTAINERNAME=centos_ansible
 IMAGENAME="oveits/centos_ansible"
@@ -24,6 +25,9 @@ DIR=`pwd`
 
 # Create Docker image, if it does not exist
 FOUND_IMAGE=`docker images | grep ${IMAGENAME} | grep $TAG`
+# if not found locally, try to pull it from the Docker Repo:
+[ $? != 0 ] && [ "$PULL" == true ] && docker pull ${IMAGENAME}:$TAG && FOUND_IMAGE=`docker images | grep ${IMAGENAME} | grep $TAG`
+
 if [ "$FOUND_IMAGE" == "" ]; then
    echo "docker image ${IMAGENAME} not found. It will be created now. For removing, run 'docker rmi ${IMAGENAME}'."
 

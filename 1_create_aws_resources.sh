@@ -55,7 +55,7 @@ fi
 if [ "$AWS_SECRET_ACCESS_KEY" != "" ]; then
   export TF_VAR_aws_secret_key=$AWS_SECRET_ACCESS_KEY 
 else
-  echo "AWS Secret Access Key ID not found in ./.aws/credentials" >&2
+  echo "AWS Secret Access Key not found in ./.aws/credentials" >&2
   exit 1
 fi
 
