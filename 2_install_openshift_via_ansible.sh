@@ -239,7 +239,7 @@ if [ "$SUCCESS" == "true" ]; then
    echo "######################################################################"
    echo '# OpenShift successfully installed!'
    echo "# Use a browser to connect to https://${OPENSHIFT_PUBLIC_HOSTNAME}:8443"
-   echo "# If $OPENSHIFT_PUBLIC_HOSTNAME is not reachable, try adding $OPENSHIFT_PUBLIC_HOSTNAME to your hosts file with IP address $MASTERIP" and make sure the connection is not blocked by a firewall"
+   echo "# If $OPENSHIFT_PUBLIC_HOSTNAME is not reachable, try adding $OPENSHIFT_PUBLIC_HOSTNAME to your hosts file with IP address $MASTERIP and make sure the connection is not blocked by a firewall"
    echo "#"
    echo "# Log in as user 'test' with password '$TESTPASSWD'"
    echo "#"
