@@ -215,6 +215,7 @@ echo $INSTALL | grep -q yum && $SUDO yum clean all
 # create an OpenShift user 'test' with random password:
 # random password generation from http://www.howtogeek.com/howto/30184/10-ways-to-generate-a-random-password-from-the-command-line/
 TESTPASSWD=`< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c6`
+ADMINPASSWD=`< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c6`
 #MASTERIP=`cat ./terraform.tfstate | grep '"public_ip"' | awk -F '"' '{print $4; exit}'`
 MASTERIP=$MASTER_PUBLIC_IP
 #MASTERDNS=`cat ./${INVENTORY} | grep ec2- | awk -F '=' '{print $2; exit}'`
@@ -227,7 +228,9 @@ echo "ssh -t -i ${key_path}  ${SSHUSER}@${MASTERIP} sudo htpasswd -cb /etc/origi
 ssh -t -i ${key_path}  ${SSHUSER}@${MASTERIP} <<EOSSHCOMMAND93458924
 #sudo mkdir /etc/origin
 #sudo htpasswd -cb /etc/origin/openshift-passwd test $TESTPASSWD
-sudo htpasswd -b /etc/origin/master/htpasswd test $TESTPASSWD
+#sudo htpasswd -b /etc/origin/master/htpasswd test $TESTPASSWD
+sudo htpasswd -b /etc/origin/master/htpasswd admin $ADMINPASSWD
+sudo oc adm policy add-cluster-role-to-user cluster-admin admin
 EOSSHCOMMAND93458924
 
 [ $? == 0 ] && SUCCESS=true || SUCCESS=false
@@ -240,12 +243,14 @@ if [ "$SUCCESS" == "true" ]; then
    echo "# Use a browser to connect to https://${OPENSHIFT_PUBLIC_HOSTNAME}:8443"
    echo "# If $OPENSHIFT_PUBLIC_HOSTNAME is not reachable, try adding $OPENSHIFT_PUBLIC_HOSTNAME to your hosts file with IP address $MASTERIP and make sure the connection is not blocked by a firewall"
    echo "#"
-   echo "# Log in as user 'test' with password '$TESTPASSWD'"
+   echo "# Log in as user 'admin' with password '$ADMINPASSWD'"
    echo "#"
    echo "# New users can be added by connecting to the master via"
    echo "#   ssh -t -i ${key_path} ${SSHUSER}@${MASTERIP}"
    echo "# and there:"
-   echo "#   sudo htpasswd -b /etc/origin/openshift-passwd test $TESTPASSWD"
+   echo "#   sudo htpasswd -b /etc/origin/openshift-passwd <user> <pass>"
+   echo "#"
+   echo "# The password of admin can be reset on the master with 'sudo htpasswd -b /etc/origin/openshift-passwd admin <newpassword>'"
    echo "######################################################################"
 
 else
@@ -256,15 +261,6 @@ else
    echo "# and try adding the user manually via:"
    echo "#   sudo htpasswd -b /etc/origin/openshift-passwd test $TESTPASSWD"
    echo "######################################################################"
-fi
-
-if [ "$SUCCESS" == "true" ]; then
-   read -p "We will now add a cluster admin (press return to continue)" a 
-   read -p "(type in the admin's password) " ADMINPASSWD 
-   ssh -t -i ${key_path}  ${SSHUSER}@${MASTERIP} <<EOSSHCOMMAND38428
-      sudo htpasswd -b /etc/origin/master/htpasswd admin $ADMINPASSWD
-      oc adm policy add-cluster-role-to-user cluster-admin admin
-EOSSHCOMMAND38428
 fi
 
 
