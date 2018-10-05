@@ -20,8 +20,8 @@ Step by Step:
 - replace master DNS name by value in first line of the cat command output above
 - replace node DNS names by values in line 2 to n
 -  retrieve SSK_key.pem and copy it to .aws/SSK_key.pem
-  $ 2_docker_install_openshift_via_ansible.sh
-  (this step will take >~30 minutes)
+  $ bash 2_docker_install_openshift_via_ansible.sh
+  after ~2 minutes,you will be prompted for your docker hub credentials. Add them. After this, the installation will take >~30 minutes
 - if successful: write down the password of the test user
 - On a machine with Web Browser: add/change host entry for
   52.57.62.152  master master.fuse.osecloud.com
