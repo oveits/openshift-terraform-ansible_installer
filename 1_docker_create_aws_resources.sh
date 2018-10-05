@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 #
-# Creating and running a Docker Image with IMAGESCRIPT saved in image and RUNSCRIPT executed every time
+# Creating and running a Terraform Docker Image with IMAGESCRIPT saved in image and RUNSCRIPT executed every time
 # the container is mapping the working directory to /app
 #
 
+PULL=true
 BASEIMAGE="hashicorp/terraform:light"
 CONTAINERNAME=terraform_bash_wget
 IMAGENAME="oveits/terraform_bash_wget"
@@ -19,6 +20,9 @@ DIR=`pwd`
 
 # Create Docker image, if it does not exist
 FOUND_IMAGE=`docker images | grep ${IMAGENAME} | grep $TAG`
+# if not found locally, try to pull it from the Docker Repo:
+[ $? != 0 ] && [ "$PULL" == true ] && docker pull ${IMAGENAME}:$TAG && FOUND_IMAGE=`docker images | grep ${IMAGENAME} | grep $TAG`
+
 if [ "$FOUND_IMAGE" == "" ]; then
    echo "docker image ${IMAGENAME} not found. It will be created now. For removing, run 'docker rmi ${IMAGENAME}'."
 

@@ -11,15 +11,9 @@ Step by Step:
 - On the Linux system, perform:
   $ git clone --recursive https://github.com/oveits/openshift-terraform-ansible_installer
   $ cd openshift-terraform-ansible_installer
+-  retrieve SSK_key.pem and copy it to (openshift-terraform-ansible_installer)/.aws/SSK_key.pem
   $ bash 1_docker_create_aws_resources.sh
     (edit files as appropriate)
-  $ cp inventory.example inventory
-  $ cat terraform.tfstate | grep ec2- | awk -F '"' '{print $4}'
-  ec2-52-57-51-241.eu-central-1.compute.amazonaws.com
-  ec2-52-57-112-189.eu-central-1.compute.amazonaws.com^
-- replace master DNS name by value in first line of the cat command output above
-- replace node DNS names by values in line 2 to n
--  retrieve SSK_key.pem and copy it to .aws/SSK_key.pem
   $ bash 2_docker_install_openshift_via_ansible.sh
   after ~2 minutes,you will be prompted for your docker hub credentials. Add them. After this, the installation will take >~30 minutes
 - if successful: write down the password of the test user
