@@ -8,6 +8,7 @@ source ./detect_installer.sh
 
 # install terraform:
 terraform -version || ( echo "terraform not found on the system; installing terraform" && ./install_terraform.sh )
+terraform init openshift-terraform-ansible/ec2/
 
 FILES=".aws/credentials terraform.tfvars"
 
@@ -43,14 +44,40 @@ do
 done
 
 source ./.aws/credentials
-[ "$AWS_ACCESS_KEY_ID" != "" ] && export TF_VAR_aws_access_key=$AWS_ACCESS_KEY_ID || exit 1
-[ "$AWS_SECRET_ACCESS_KEY" != "" ] && export TF_VAR_aws_secret_key=$AWS_SECRET_ACCESS_KEY || exit 1
+
+if [ "$AWS_ACCESS_KEY_ID" != "" ]; then
+  export TF_VAR_aws_access_key=$AWS_ACCESS_KEY_ID 
+else
+  echo "AWS Key ID not found in ./.aws/credentials" >&2
+  exit 1
+fi
+
+if [ "$AWS_SECRET_ACCESS_KEY" != "" ]; then
+  export TF_VAR_aws_secret_key=$AWS_SECRET_ACCESS_KEY 
+else
+  echo "AWS Secret Access Key ID not found in ./.aws/credentials" >&2
+  exit 1
+fi
+
+if [ "$KEY_PATH" != "" ]; then
+  export TF_VAR_key_path=$KEY_PATH
+  if [ ! -r "$KEY_PATH" ]; then
+    echo "Cannot read key file '$KEY_PATH' (as specified in ./.aws/credentials)" >&2
+    exit 1
+  fi
+else
+  echo "AWS private key path not found in ./.aws/credentials" >&2
+  exit 1
+fi
+
+echo "--- Retrieving own IP address (this might take a while)"
+
 source ./detect_installer.sh && \
 which wget 2>/dev/null 1>/dev/null || \
 $SUDO $INSTALL -y wget
 export TF_VAR_IP_with_full_access=`wget http://ipinfo.io/ip -qO -`
 
-echo "Reviewing Terraform Plan"
+echo "--- Reviewing Terraform Plan"
 
 DIR=openshift-terraform-ansible/ec2
 FILE=$DIR/main.tf

@@ -12,3 +12,7 @@ old
 !.aws/*example*
 *.log
 openshift-ansible_error_issue_2
+*.tmp
+*.rpm
+.terraform
+ec2/.terraform
