@@ -33,24 +33,30 @@ sleep 1
 INVENTORY=inventory
 #INVENTORY=inventory.all-in-one
 
-MASTER=`cat terraform.tfstate | grep ec2- | awk -F '"' '{print $4; exit}'`
-NODES=`cat terraform.tfstate | grep ec2- | awk -F '"' -v master="$MASTER" ' $0 !~ master { print $4" openshift_node_labels=\"{'\''region'\'': '\''infra'\'', '\''zone'\'': '\''default'\''}\"" }'`
-yum install jq -y
-export MASTER_PUBLIC_IP=$(cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "masters")) | .[0] .primary.attributes."public_ip"')
-export MASTER_PRIVATE_IP=$(cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "masters")) | .[0] .primary.attributes."private_ip"')
-export MASTER_PUBLIC_DNS=$(cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "masters")) | .[0] .primary.attributes."public_dns"')
-export MASTER_PRIVATE_DNS=$(cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "masters")) | .[0] .primary.attributes."private_dns"')
+# obsolete:
+#MASTER=`cat terraform.tfstate | grep ec2- | awk -F '"' '{print $4; exit}'`
+#NODES=`cat terraform.tfstate | grep ec2- | awk -F '"' -v master="$MASTER" ' $0 !~ master { print $4" openshift_node_labels=\"{'\''region'\'': '\''infra'\'', '\''zone'\'': '\''default'\''}\"" }'`
 
-for i in `seq 0 100000`;
+yum install jq -y
+export MASTER_PUBLIC_IP=$(cat config.properties | grep "^masterPublicIp" | awk -F '=' '{print $2}' || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "masters")) | .[0] .primary.attributes."public_ip"')
+export MASTER_PRIVATE_IP=$(cat config.properties | grep "^masterPrivateIp" | awk -F '=' '{print $2}' || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "masters")) | .[0] .primary.attributes."private_ip"')
+export MASTER_PUBLIC_DNS=$(cat config.properties | grep "^masterPublicDns" | awk -F '=' '{print $2}' || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "masters")) | .[0] .primary.attributes."public_dns"')
+export MASTER_PRIVATE_DNS=$(cat config.properties | grep "masterPrivateDns" | awk -F '=' '{print $2}' || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "masters")) | .[0] .primary.attributes."private_dns"')
+
+ALL_HOSTS=$MASTER_PUBLIC_IP
+
+for i in `seq 0 10000`;
 do
   # find node info from terraform.tfstate:
-  NODE_PUBLIC_IP=$(cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "nodes")) | .['$i'] .primary.attributes."public_ip"')
-  NODE_PRIVATE_IP=$(cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "nodes")) | .['$i'] .primary.attributes."private_ip"')
-  NODE_PUBLIC_DNS=$(cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "nodes")) | .['$i'] .primary.attributes."public_dns"')
-  NODE_PRIVATE_DNS=$(cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "nodes")) | .['$i'] .primary.attributes."private_dns"')
+  NODE_PUBLIC_IP=$(cat config.properties | grep "^nodePublicIp\[$i\]" | awk -F '=' '{print $2}' || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "nodes")) | .['$i'] .primary.attributes."public_ip"')
+  NODE_PRIVATE_IP=$(cat config.properties | grep "^nodePrivateIp\[$i\]" | awk -F '=' '{print $2}' || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "nodes")) | .['$i'] .primary.attributes."private_ip"')
+  NODE_PUBLIC_DNS=$(cat config.properties | grep "^nodePublicDns\[$i\]" | awk -F '=' '{print $2}' || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "nodes")) | .['$i'] .primary.attributes."public_dns"')
+  NODE_PRIVATE_DNS=$(cat config.properties | grep "^nodePrivateDns\[$i\]" | awk -F '=' '{print $2}' || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "nodes")) | .['$i'] .primary.attributes."private_dns"')
 
   # break, if NODE_PRIVATE_IP not found:
-  [ "${NODE_PRIVATE_IP}" == "null" ] && echo "stopping for loop at i=$i" && break
+  [ "${NODE_PRIVATE_IP}" == "" ] && NODE_PRIVATE_IP=null
+  [ "${NODE_PUBLIC_IP}" == "" ] && NODE_PUBLIC_IP=null
+  [ "${NODE_PRIVATE_IP}" == "null" -o "${NODE_PUBLIC_IP}" == "null" ] && echo "stopping for loop at i=$i" && break
 
   # create NODE_ENTRY:
   NODE_ENTRY="${NODE_PUBLIC_IP} openshift_ip=${NODE_PRIVATE_IP} openshift_schedulable=true openshift_node_group_name=\"node-config-compute\""
@@ -60,6 +66,8 @@ do
   [ "$NODE_ENTRIES" == "" ] && export NODE_ENTRIES=$NODE_ENTRY || export NODE_ENTRIES="$NODE_ENTRIES"$'\n'"$NODE_ENTRY"
   	# echo "NODE_ENTRIES=$NODE_ENTRIES"
 
+
+  ALL_HOSTS="$ALL_HOSTS,$NODE_PUBLIC_IP"
 done
 
 # create inventory file from template:
@@ -74,6 +82,8 @@ cd `dirname $0`
 #sudo dnf install -y which || sudo yum install -y which || sudo apt-get install -y which || dnf install -y which || yum install -y which || apt-get install -y which
 source ./detect_installer.sh
 #source ./.aws_creds 
+
+#[ -f .aws/credentials ] || cp .aws/credentials.example .aws/credentials
 
 # 1. read key_path from .aws/credentials or from terraform.tfvars:
 source ./read_key_file.sh 
@@ -159,7 +169,9 @@ chmod 400 $key_path && \
 #cp /nfs/veits/PC/PKI/AWS/AWS_SSH_Key.pem ~/AWS_SSH_Key.pem && chmod 600 ~/AWS_SSH_Key.pem && \
 export ANSIBLE_HOST_KEY_CHECKING=False && \
 
-ansible-playbook -i $DIR/terraform.py/terraform.py --private-key=${key_path} $DIR/openshift-terraform-ansible/ec2/ansible/ose3-prep-nodes.yml && \
+#ansible-playbook -i $DIR/terraform.py/terraform.py --private-key=${key_path} $DIR/openshift-terraform-ansible/ec2/ansible/ose3-prep-nodes.yml && \
+
+ansible-playbook -i "$ALL_HOSTS," --private-key=${KEY_PATH} $DIR/openshift-terraform-ansible/ec2/ansible/ose3-prep-nodes.yml 
 
 #echo "stopping here" && \
 #exit 1
@@ -178,10 +190,12 @@ export ANSIBLE_CONFIG=$DIR/openshift-ansible/ansible.cfg && \
 # temporarily added for quicker feedback on current failures:
 # ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/openshift-master/additional_config.yml
 
+mkdir -p $DIR/log/
+´
 ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/prerequisites.yml -vvv | tee $DIR/log/2_install_openshift_via_ansible.log
-echo "ssh -t -i ${key_path}  centos@${MASTER_PUBLIC_IP} <<EOSSHCOMMAND397459 ..."
+echo "ssh -t -i ${key_path}  ${SSHUSER}@${MASTER_PUBLIC_IP} <<EOSSHCOMMAND397459 ..."
 # ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/openshift-master/config.yml -vvv 
-ssh -o "StrictHostKeyChecking=no" -t -i ${key_path}  centos@${MASTER_PUBLIC_IP} <<EOSSHCOMMAND397459
+ssh -o "StrictHostKeyChecking=no" -t -i ${key_path}  ${SSHUSER}@${MASTER_PUBLIC_IP} <<EOSSHCOMMAND397459
 sudo mkdir -p /etc/origin/master/
 sudo touch /etc/origin/master/htpasswd
 sudo chmod 600 /etc/origin/master/htpasswd
@@ -220,7 +234,7 @@ ADMINPASSWD=`< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c6`
 MASTERIP=$MASTER_PUBLIC_IP
 #MASTERDNS=`cat ./${INVENTORY} | grep ec2- | awk -F '=' '{print $2; exit}'`
 MASTERDNS=$MASTER_PUBLIC_DNS
-SSHUSER=`cat ./${INVENTORY} | grep 'ansible_ssh_user=' | awk -F '=' '{print $2;exit}'`
+SSHUSER=`cat ./${INVENTORY} | grep '^ansible_ssh_user=' | awk -F '=' '{print $2;exit}'`
 
 #ssh -t -i ~/AWS_SSH_Key.pem ${SSHUSER}@${MASTERIP} sudo htpasswd -b /etc/origin/openshift-passwd test $TESTPASSWD && \
 echo "ssh -t -i ${key_path}  ${SSHUSER}@${MASTERIP} sudo htpasswd -cb /etc/origin/openshift-passwd test $TESTPASSWD"
