@@ -75,6 +75,8 @@ yum install gettext -y
 envsubst < ${INVENTORY}.ini > ${INVENTORY}
 
 
+SSHUSER=`cat ./${INVENTORY} | grep '^ansible_ssh_user=' | awk -F '=' '{print $2;exit}'`
+
 # commands needed on Centos or Fedora to install ansible client for installing openshift on AWS 
 # with project https://github.com/openshift/openshift-ansible
 cd `dirname $0`
@@ -167,11 +169,11 @@ grep "^key_path" terraform.tfvars | sed 's/ //g' > /tmp/key_path.sh
 source /tmp/key_path.sh && rm /tmp/key_path.sh
 chmod 400 $key_path && \
 #cp /nfs/veits/PC/PKI/AWS/AWS_SSH_Key.pem ~/AWS_SSH_Key.pem && chmod 600 ~/AWS_SSH_Key.pem && \
-export ANSIBLE_HOST_KEY_CHECKING=False && \
+export ANSIBLE_HOST_KEY_CHECKING=False 
 
 #ansible-playbook -i $DIR/terraform.py/terraform.py --private-key=${key_path} $DIR/openshift-terraform-ansible/ec2/ansible/ose3-prep-nodes.yml && \
 
-ansible-playbook -i "$ALL_HOSTS," --private-key=${KEY_PATH} $DIR/openshift-terraform-ansible/ec2/ansible/ose3-prep-nodes.yml 
+ansible-playbook -i "$ALL_HOSTS," --private-key=${KEY_PATH} $DIR/openshift-terraform-ansible/ec2/ansible/ose3-prep-nodes.yml  || exit 1
 
 #echo "stopping here" && \
 #exit 1
@@ -190,22 +192,38 @@ export ANSIBLE_CONFIG=$DIR/openshift-ansible/ansible.cfg && \
 # temporarily added for quicker feedback on current failures:
 # ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/openshift-master/additional_config.yml
 
-mkdir -p $DIR/log/
-´
-ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/prerequisites.yml -vvv | tee $DIR/log/2_install_openshift_via_ansible.log
+mkdir -p $DIR/log/ || exit 1
+
 echo "ssh -t -i ${key_path}  ${SSHUSER}@${MASTER_PUBLIC_IP} <<EOSSHCOMMAND397459 ..."
-# ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/openshift-master/config.yml -vvv 
-ssh -o "StrictHostKeyChecking=no" -t -i ${key_path}  ${SSHUSER}@${MASTER_PUBLIC_IP} <<EOSSHCOMMAND397459
+
+# fix /etc/hosts on master:
+ssh -o "StrictHostKeyChecking=no" -t -i ${key_path}  ${SSHUSER}@${MASTER_PUBLIC_IP} <<'EOSSHCOMMAND34782563475' || exit 1
+export DOMAIN=${DOMAIN:="$(curl -s ipinfo.io/ip).nip.io"}
+export IP=${IP:="$(ip route get 8.8.8.8 | awk '{print $NF; exit}')"}
+cat <<EOD > /etc/hosts
+127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4 
+::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
+${IP}		$(hostname) console console.${DOMAIN}  
+EOD
+EOSSHCOMMAND34782563475
+
+# create password file on master:
+ssh -o "StrictHostKeyChecking=no" -t -i ${key_path}  ${SSHUSER}@${MASTER_PUBLIC_IP} <<'EOSSHCOMMAND397459' || exit 1
+# TODO: if whoami==root, then avoid sudo
 sudo mkdir -p /etc/origin/master/
 sudo touch /etc/origin/master/htpasswd
 sudo chmod 600 /etc/origin/master/htpasswd
 EOSSHCOMMAND397459
+
+ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/prerequisites.yml -vvv | tee $DIR/log/2_install_openshift_via_ansible.log
+# ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/openshift-master/config.yml -vvv 
 
 #exit
 
 # has caused "Timeout (32s) waiting for privilege escalation prompt":
 # ansible-playbook -i $DIR/${INVENTORY} --become --become-method=su --private-key=${key_path} $DIR/openshift-ansible/playbooks/deploy_cluster.yml -vvvvv | tee -a $DIR/log/2_install_openshift_via_ansible.log
 ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/deploy_cluster.yml -vvvvv | tee -a $DIR/log/2_install_openshift_via_ansible.log
+ansible --version
 # in the moment, the playbook fails on first run, therefore, let us try again:
 #[ $? != 0 ] && "echo retrying..." && ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/deploy_cluster.yml -vvvvv | tee -a $DIR/log/2_install_openshift_via_ansible.log
 
@@ -234,7 +252,6 @@ ADMINPASSWD=`< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c6`
 MASTERIP=$MASTER_PUBLIC_IP
 #MASTERDNS=`cat ./${INVENTORY} | grep ec2- | awk -F '=' '{print $2; exit}'`
 MASTERDNS=$MASTER_PUBLIC_DNS
-SSHUSER=`cat ./${INVENTORY} | grep '^ansible_ssh_user=' | awk -F '=' '{print $2;exit}'`
 
 #ssh -t -i ~/AWS_SSH_Key.pem ${SSHUSER}@${MASTERIP} sudo htpasswd -b /etc/origin/openshift-passwd test $TESTPASSWD && \
 echo "ssh -t -i ${key_path}  ${SSHUSER}@${MASTERIP} sudo htpasswd -cb /etc/origin/openshift-passwd test $TESTPASSWD"
