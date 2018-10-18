@@ -1,7 +1,7 @@
 [submodule "openshift-ansible"]
    path = openshift-ansible
    url = https://github.com/oveits/openshift-ansible
-   branch = 39b0648d4c73e55960fb5cb943c83af0f0d032a9
+   branch = release-3.10-hotfix-htpass_provider
 
 [submodule "terraform.py"]
    path = terraform.py 
