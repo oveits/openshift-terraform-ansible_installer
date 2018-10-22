@@ -1,4 +1,6 @@
 
+INTERACTIVE=false
+
 # enable root login on AWS CentOS (does not help with the issues, though)
 # sudo cp /root/.ssh/authorized_keys /root/.ssh/authorized_keys.bak
 # sudo cp /home/centos/.ssh/authorized_keys /root/.ssh/authorized_keys
@@ -44,6 +46,7 @@ export MASTER_PUBLIC_DNS=$(cat config.properties | grep "^masterPublicDns" | awk
 export MASTER_PRIVATE_DNS=$(cat config.properties | grep "masterPrivateDns" | awk -F '=' '{print $2}' || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "masters")) | .[0] .primary.attributes."private_dns"')
 
 ALL_HOSTS=$MASTER_PUBLIC_IP
+ALL_MASTER_HOSTS=$MASTER_PUBLIC_IP
 
 for i in `seq 0 10000`;
 do
@@ -68,6 +71,12 @@ do
 
 
   ALL_HOSTS="$ALL_HOSTS,$NODE_PUBLIC_IP"
+  if [ "$ALL_NODE_HOSTS" == "" ]; then
+    ALL_NODE_HOSTS="$NODE_PUBLIC_IP"
+  else
+    ALL_NODE_HOSTS="$ALL_NODE_HOSTS,$NODE_PUBLIC_IP"
+  fi
+  echo ALL_NODE_HOSTS=$ALL_NODE_HOSTS
 done
 
 # create inventory file from template:
@@ -173,7 +182,6 @@ export ANSIBLE_HOST_KEY_CHECKING=False
 
 #ansible-playbook -i $DIR/terraform.py/terraform.py --private-key=${key_path} $DIR/openshift-terraform-ansible/ec2/ansible/ose3-prep-nodes.yml && \
 
-ansible-playbook -i "$ALL_HOSTS," --private-key=${KEY_PATH} $DIR/openshift-terraform-ansible/ec2/ansible/ose3-prep-nodes.yml  || exit 1
 
 #echo "stopping here" && \
 #exit 1
@@ -194,18 +202,65 @@ export ANSIBLE_CONFIG=$DIR/openshift-ansible/ansible.cfg && \
 
 mkdir -p $DIR/log/ || exit 1
 
+ansible-playbook -i "$ALL_HOSTS," --private-key=${KEY_PATH} $DIR/openshift-terraform-ansible/ec2/ansible/ose3-prep-nodes.yml  || exit 1
+ 
+echo: "DONE: ansible-playbook -i $ALL_HOSTS, --private-key=${KEY_PATH} $DIR/openshift-terraform-ansible/ec2/ansible/ose3-prep-nodes.yml"
+[ "$INTERACTIVE" == "true" ] && read -p "Proceed with return key" a
+
 echo "ssh -t -i ${key_path}  ${SSHUSER}@${MASTER_PUBLIC_IP} <<EOSSHCOMMAND397459 ..."
 
 # fix /etc/hosts on master:
 ssh -o "StrictHostKeyChecking=no" -t -i ${key_path}  ${SSHUSER}@${MASTER_PUBLIC_IP} <<'EOSSHCOMMAND34782563475' || exit 1
+# VARS:
 export DOMAIN=${DOMAIN:="$(curl -s ipinfo.io/ip).nip.io"}
 export IP=${IP:="$(ip route get 8.8.8.8 | awk '{print $NF; exit}')"}
+# short hostname in case hostname is a FQDN:
+export SHORT_HOSTNAME=$(hostname | sed 's/\..*$//g')
+
+# set FQDN hostname, see https://bugzilla.redhat.com/show_bug.cgi?id=1625911
+#hostnamectl set-hostname ${SHORT_HOSTNAME}.${DOMAIN}
+hostnamectl set-hostname ${SHORT_HOSTNAME}
+
+# add nameserver, if not present:
+cat /etc/resolv.conf | grep nameserver || echo "nameserver 8.8.8.8" >> /etc/resolv.conf
+
+# /etc/hosts
 cat <<EOD > /etc/hosts
 127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4 
 ::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
-${IP}		$(hostname) console console.${DOMAIN}  
+${IP}		${SHORT_HOSTNAME} ${SHORT_HOSTNAME}.${DOMAIN} console console.${DOMAIN}
 EOD
 EOSSHCOMMAND34782563475
+
+# fix /etc/hosts and missing nameserver on nodes:
+for host in $(echo $ALL_NODE_HOSTS | sed 's/,/ /g');
+do
+  ssh -o "StrictHostKeyChecking=no" -t -i ${key_path}  ${SSHUSER}@${host} <<'EOSSHCOMMAND8934t94w5' || exit 1
+# VARS:
+export DOMAIN=${DOMAIN:="$(curl -s ipinfo.io/ip).nip.io"}
+export IP=${IP:="$(ip route get 8.8.8.8 | awk '{print $NF; exit}')"}
+# short hostname in case hostname is a FQDN:
+export SHORT_HOSTNAME=$(hostname | sed 's/\..*$//g')
+
+# set FQDN hostname, see https://bugzilla.redhat.com/show_bug.cgi?id=1625911
+#hostnamectl set-hostname ${SHORT_HOSTNAME}.${DOMAIN}
+# set back to 
+hostnamectl set-hostname ${SHORT_HOSTNAME}
+
+# add nameserver, if not present:
+cat /etc/resolv.conf | grep nameserver || echo "nameserver 8.8.8.8" >> /etc/resolv.conf
+
+# /etc/hosts
+cat <<EOD > /etc/hosts
+127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
+::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
+${IP}           ${SHORT_HOSTNAME} ${SHORT_HOSTNAME}.${DOMAIN}
+EOD
+EOSSHCOMMAND8934t94w5
+done
+
+echo "DONE: /etc/hosts have been replaced. Proceed with return key"
+[ "$INTERACTIVE" == "true" ] && read -p "Proceed with return key" a
 
 # create password file on master:
 ssh -o "StrictHostKeyChecking=no" -t -i ${key_path}  ${SSHUSER}@${MASTER_PUBLIC_IP} <<'EOSSHCOMMAND397459' || exit 1
@@ -218,6 +273,8 @@ EOSSHCOMMAND397459
 ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/prerequisites.yml -vvv | tee $DIR/log/2_install_openshift_via_ansible.log
 # ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/openshift-master/config.yml -vvv 
 
+echo "DONE: ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/prerequisites.yml -vvv"
+[ "$INTERACTIVE" == "true" ] && read -p "Proceed with return key" a
 #exit
 
 # has caused "Timeout (32s) waiting for privilege escalation prompt":
