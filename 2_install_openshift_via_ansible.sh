@@ -1,5 +1,8 @@
 
-INTERACTIVE=false
+INTERACTIVE=true
+DEBUG=true
+SKIP_FIX_PREREQUISITES=true
+SKIP_CHECK_PREREQUISITES=true
 
 # enable root login on AWS CentOS (does not help with the issues, though)
 # sudo cp /root/.ssh/authorized_keys /root/.ssh/authorized_keys.bak
@@ -40,26 +43,41 @@ INVENTORY=inventory
 #NODES=`cat terraform.tfstate | grep ec2- | awk -F '"' -v master="$MASTER" ' $0 !~ master { print $4" openshift_node_labels=\"{'\''region'\'': '\''infra'\'', '\''zone'\'': '\''default'\''}\"" }'`
 
 yum install jq -y
-export MASTER_PUBLIC_IP=$(cat config.properties | grep "^masterPublicIp" | awk -F '=' '{print $2}' || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "masters")) | .[0] .primary.attributes."public_ip"')
-export MASTER_PRIVATE_IP=$(cat config.properties | grep "^masterPrivateIp" | awk -F '=' '{print $2}' || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "masters")) | .[0] .primary.attributes."private_ip"')
-export MASTER_PUBLIC_DNS=$(cat config.properties | grep "^masterPublicDns" | awk -F '=' '{print $2}' || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "masters")) | .[0] .primary.attributes."public_dns"')
-export MASTER_PRIVATE_DNS=$(cat config.properties | grep "masterPrivateDns" | awk -F '=' '{print $2}' || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "masters")) | .[0] .primary.attributes."private_dns"')
+[ -x config.properties ] || touch config.properties
+export MASTER_PUBLIC_IP=$(cat config.properties | grep "^masterPublicIp" | awk -F '=' '{print $2}' | grep -e ".\{1,\}" || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "masters")) | .[0] .primary.attributes."public_ip"')
+export MASTER_PRIVATE_IP=$(cat config.properties | grep "^masterPrivateIp" | awk -F '=' '{print $2}' | grep -e ".\{1,\}" || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "masters")) | .[0] .primary.attributes."private_ip"')
+export MASTER_PUBLIC_DNS=$(cat config.properties | grep "^masterPublicDns" | awk -F '=' '{print $2}' | grep -e ".\{1,\}" || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "masters")) | .[0] .primary.attributes."public_dns"')
+export MASTER_PRIVATE_DNS=$(cat config.properties | grep "masterPrivateDns" | awk -F '=' '{print $2}' | grep -e ".\{1,\}" || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "masters")) | .[0] .primary.attributes."private_dns"')
 
 ALL_HOSTS=$MASTER_PUBLIC_IP
 ALL_MASTER_HOSTS=$MASTER_PUBLIC_IP
 
+[ "$DEBUG" == "true" ] && echo "ALL_MASTER_HOSTS=$ALL_MASTER_HOSTS"
+
 for i in `seq 0 10000`;
 do
   # find node info from terraform.tfstate:
-  NODE_PUBLIC_IP=$(cat config.properties | grep "^nodePublicIp\[$i\]" | awk -F '=' '{print $2}' || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "nodes")) | .['$i'] .primary.attributes."public_ip"')
-  NODE_PRIVATE_IP=$(cat config.properties | grep "^nodePrivateIp\[$i\]" | awk -F '=' '{print $2}' || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "nodes")) | .['$i'] .primary.attributes."private_ip"')
-  NODE_PUBLIC_DNS=$(cat config.properties | grep "^nodePublicDns\[$i\]" | awk -F '=' '{print $2}' || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "nodes")) | .['$i'] .primary.attributes."public_dns"')
-  NODE_PRIVATE_DNS=$(cat config.properties | grep "^nodePrivateDns\[$i\]" | awk -F '=' '{print $2}' || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "nodes")) | .['$i'] .primary.attributes."private_dns"')
+  NODE_PUBLIC_IP=$(cat config.properties | grep "^nodePublicIp\[$i\]" | awk -F '=' '{print $2}' | grep -e ".\{1,\}" || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "nodes")) | .['$i'] .primary.attributes."public_ip"')
+  NODE_PRIVATE_IP=$(cat config.properties | grep "^nodePrivateIp\[$i\]" | awk -F '=' '{print $2}' | grep -e ".\{1,\}" || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "nodes")) | .['$i'] .primary.attributes."private_ip"')
+  NODE_PUBLIC_DNS=$(cat config.properties | grep "^nodePublicDns\[$i\]" | awk -F '=' '{print $2}' | grep -e ".\{1,\}" || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "nodes")) | .['$i'] .primary.attributes."public_dns"')
+  NODE_PRIVATE_DNS=$(cat config.properties | grep "^nodePrivateDns\[$i\]" | awk -F '=' '{print $2}' | grep -e ".\{1,\}" || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "nodes")) | .['$i'] .primary.attributes."private_dns"')
 
   # break, if NODE_PRIVATE_IP not found:
   [ "${NODE_PRIVATE_IP}" == "" ] && NODE_PRIVATE_IP=null
   [ "${NODE_PUBLIC_IP}" == "" ] && NODE_PUBLIC_IP=null
   [ "${NODE_PRIVATE_IP}" == "null" -o "${NODE_PUBLIC_IP}" == "null" ] && echo "stopping for loop at i=$i" && break
+
+  # read hostname
+  SSHUSER=root
+  echo "key_path=${key_path}, SSHUSER@NODE_PUBLIC_IP = ${SSHUSER}@${NODE_PUBLIC_IP}"
+  NODE_HOSTNAME=$(ssh -o "StrictHostKeyChecking=no" -t -i ${key_path}  ${SSHUSER}@${NODE_PUBLIC_IP} 'hostname -f')
+  [ "$DEBUG" == "true" ] && echo "NODE_HOSTNAME=$NODE_HOSTNAME"
+
+  # create /etc/hosts entries:
+  #ETC_HOSTS_NODE_ENTRIES="$ETC_HOSTS_NODE_ENTRIES
+#${NODE_PUBLIC_IP}	${NODE_HOSTNAME}	 ${NODE_HOSTNAME}.cluster.local"
+  [ "$DEBUG" == "true" ] && echo "ETC_HOSTS_NODE_ENTRIES=$ETC_HOSTS_NODE_ENTRIES"
+  [ "$INTERACTIVE" == "true" ] && read -p "Proceed with return key" a
 
   # create NODE_ENTRY:
   NODE_ENTRY="${NODE_PUBLIC_IP} openshift_ip=${NODE_PRIVATE_IP} openshift_schedulable=true openshift_node_group_name=\"node-config-compute\""
@@ -78,6 +96,8 @@ do
   fi
   echo ALL_NODE_HOSTS=$ALL_NODE_HOSTS
 done
+
+[ "$DEBUG" == "true" ] && echo "ALL_NODE_HOSTS=$ALL_NODE_HOSTS"
 
 # create inventory file from template:
 yum install gettext -y
@@ -202,9 +222,13 @@ export ANSIBLE_CONFIG=$DIR/openshift-ansible/ansible.cfg && \
 
 mkdir -p $DIR/log/ || exit 1
 
-ansible-playbook -i "$ALL_HOSTS," --private-key=${KEY_PATH} $DIR/openshift-terraform-ansible/ec2/ansible/ose3-prep-nodes.yml  || exit 1
+echo "ansible-playbook -i $ALL_HOSTS, --become --become-user $SSHUSER --private-key=${KEY_PATH} $DIR/openshift-terraform-ansible/ec2/ansible/ose3-prep-nodes.yml"
+[ "$INTERACTIVE" == "true" ] && read -p "Proceed with return key" a
+
+if [ "$SKIP_FIX_PREREQUISITES" != "true" ]; then
+   ansible-playbook -i "$ALL_HOSTS," --user $SSHUSER --become --become-user root --private-key=${KEY_PATH} $DIR/openshift-terraform-ansible/ec2/ansible/ose3-prep-nodes.yml  || exit 1
+fi
  
-echo: "DONE: ansible-playbook -i $ALL_HOSTS, --private-key=${KEY_PATH} $DIR/openshift-terraform-ansible/ec2/ansible/ose3-prep-nodes.yml"
 [ "$INTERACTIVE" == "true" ] && read -p "Proceed with return key" a
 
 echo "ssh -t -i ${key_path}  ${SSHUSER}@${MASTER_PUBLIC_IP} <<EOSSHCOMMAND397459 ..."
@@ -212,23 +236,30 @@ echo "ssh -t -i ${key_path}  ${SSHUSER}@${MASTER_PUBLIC_IP} <<EOSSHCOMMAND397459
 # fix /etc/hosts on master:
 ssh -o "StrictHostKeyChecking=no" -t -i ${key_path}  ${SSHUSER}@${MASTER_PUBLIC_IP} <<'EOSSHCOMMAND34782563475' || exit 1
 # VARS:
-export DOMAIN=${DOMAIN:="$(curl -s ipinfo.io/ip).nip.io"}
+export EXTERNAL_DOMAIN=${DOMAIN:="$(curl -s ipinfo.io/ip).nip.io"}
+export INTERNAL_DOMAIN=cluster.local
 export IP=${IP:="$(ip route get 8.8.8.8 | awk '{print $NF; exit}')"}
 # short hostname in case hostname is a FQDN:
 export SHORT_HOSTNAME=$(hostname | sed 's/\..*$//g')
 
 # set FQDN hostname, see https://bugzilla.redhat.com/show_bug.cgi?id=1625911
-#hostnamectl set-hostname ${SHORT_HOSTNAME}.${DOMAIN}
-hostnamectl set-hostname ${SHORT_HOSTNAME}
+#hostnamectl set-hostname ${SHORT_HOSTNAME}.${EXTERNAL_DOMAIN}
+sudo hostnamectl set-hostname ${SHORT_HOSTNAME}
 
 # add nameserver, if not present:
-cat /etc/resolv.conf | grep nameserver || echo "nameserver 8.8.8.8" >> /etc/resolv.conf
+#cat /etc/resolv.conf | grep nameserver || echo "nameserver 8.8.8.8" | sudo tee -a /etc/resolv.conf
+cat /etc/resolv.conf | grep nameserver || echo "nameserver ${IP}" | sudo tee -a /etc/resolv.conf
 
 # /etc/hosts
-cat <<EOD > /etc/hosts
+
+cat <<EOD | sudo tee /etc/hosts
 127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4 
 ::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
-${IP}		${SHORT_HOSTNAME} ${SHORT_HOSTNAME}.${DOMAIN} console console.${DOMAIN}
+#${IP}		${SHORT_HOSTNAME} ${SHORT_HOSTNAME}.${EXTERNAL_DOMAIN} console console.${EXTERNAL_DOMAIN}
+${IP}          ${SHORT_HOSTNAME} ${SHORT_HOSTNAME}.cluster.local console console.${EXTERNAL_DOMAIN}
+159.69.216.245          node1 node1.cluster.local
+159.69.216.246          node2 node2.cluster.local
+
 EOD
 EOSSHCOMMAND34782563475
 
@@ -237,7 +268,8 @@ for host in $(echo $ALL_NODE_HOSTS | sed 's/,/ /g');
 do
   ssh -o "StrictHostKeyChecking=no" -t -i ${key_path}  ${SSHUSER}@${host} <<'EOSSHCOMMAND8934t94w5' || exit 1
 # VARS:
-export DOMAIN=${DOMAIN:="$(curl -s ipinfo.io/ip).nip.io"}
+#export DOMAIN=${DOMAIN:="$(curl -s ipinfo.io/ip).nip.io"}
+export DOMAIN=domain.local
 export IP=${IP:="$(ip route get 8.8.8.8 | awk '{print $NF; exit}')"}
 # short hostname in case hostname is a FQDN:
 export SHORT_HOSTNAME=$(hostname | sed 's/\..*$//g')
@@ -245,16 +277,21 @@ export SHORT_HOSTNAME=$(hostname | sed 's/\..*$//g')
 # set FQDN hostname, see https://bugzilla.redhat.com/show_bug.cgi?id=1625911
 #hostnamectl set-hostname ${SHORT_HOSTNAME}.${DOMAIN}
 # set back to 
-hostnamectl set-hostname ${SHORT_HOSTNAME}
+sudo hostnamectl set-hostname ${SHORT_HOSTNAME}
 
 # add nameserver, if not present:
-cat /etc/resolv.conf | grep nameserver || echo "nameserver 8.8.8.8" >> /etc/resolv.conf
+#cat /etc/resolv.conf | grep nameserver || echo "nameserver 8.8.8.8" | sudo tee -a /etc/resolv.conf
+cat /etc/resolv.conf | grep nameserver || echo "nameserver ${IP}" | sudo tee -a /etc/resolv.conf
 
 # /etc/hosts
-cat <<EOD > /etc/hosts
+cat <<EOD | sudo tee /etc/hosts
 127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
 ::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
-${IP}           ${SHORT_HOSTNAME} ${SHORT_HOSTNAME}.${DOMAIN}
+#${IP}           ${SHORT_HOSTNAME} ${SHORT_HOSTNAME}.${DOMAIN}
+159.69.216.244          master master.cluster.local console console.159.69.216.244.nip.io
+159.69.216.245          node1 node1.cluster.local
+159.69.216.246          node2 node2.cluster.local
+
 EOD
 EOSSHCOMMAND8934t94w5
 done
@@ -270,7 +307,9 @@ sudo touch /etc/origin/master/htpasswd
 sudo chmod 600 /etc/origin/master/htpasswd
 EOSSHCOMMAND397459
 
-ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/prerequisites.yml -vvv | tee $DIR/log/2_install_openshift_via_ansible.log
+if [ "$SKIP_CHECK_PREREQUISITES" != "true" ]; then
+   ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/prerequisites.yml -vvv | tee $DIR/log/2_install_openshift_via_ansible.log
+fi
 # ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/openshift-master/config.yml -vvv 
 
 echo "DONE: ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/prerequisites.yml -vvv"
