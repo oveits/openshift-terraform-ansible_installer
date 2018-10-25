@@ -16,3 +16,5 @@ openshift-ansible_error_issue_2
 *.rpm
 .terraform
 ec2/.terraform
+*.retry
+playbook-test*
