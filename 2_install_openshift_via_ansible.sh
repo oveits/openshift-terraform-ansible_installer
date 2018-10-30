@@ -3,6 +3,8 @@ INTERACTIVE=false
 DEBUG=true
 SKIP_FIX_PREREQUISITES=false
 SKIP_CHECK_PREREQUISITES=false
+[ "$CONFIG_PROPERTIES" == "" ] && CONFIG_PROPERTIES=$1
+[ "$CONFIG_PROPERTIES" == "" ] && CONFIG_PROPERTIES=dummy.properties
 
 # enable root login on AWS CentOS (does not help with the issues, though)
 # sudo cp /root/.ssh/authorized_keys /root/.ssh/authorized_keys.bak
@@ -43,49 +45,60 @@ INVENTORY=inventory
 #NODES=`cat terraform.tfstate | grep ec2- | awk -F '"' -v master="$MASTER" ' $0 !~ master { print $4" openshift_node_labels=\"{'\''region'\'': '\''infra'\'', '\''zone'\'': '\''default'\''}\"" }'`
 
 yum install jq -y
-[ -x config.properties ] || touch config.properties
-export MASTER_PUBLIC_IP=$(cat config.properties | grep "^masterPublicIp" | awk -F '=' '{print $2}' | grep -e ".\{1,\}" || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "masters")) | .[0] .primary.attributes."public_ip"')
-export MASTER_PRIVATE_IP=$(cat config.properties | grep "^masterPrivateIp" | awk -F '=' '{print $2}' | grep -e ".\{1,\}" || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "masters")) | .[0] .primary.attributes."private_ip"')
-export MASTER_PUBLIC_DNS=$(cat config.properties | grep "^masterPublicDns" | awk -F '=' '{print $2}' | grep -e ".\{1,\}" || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "masters")) | .[0] .primary.attributes."public_dns"')
-export MASTER_PRIVATE_DNS=$(cat config.properties | grep "masterPrivateDns" | awk -F '=' '{print $2}' | grep -e ".\{1,\}" || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "masters")) | .[0] .primary.attributes."private_dns"')
+[ -r "${CONFIG_PROPERTIES}" ] || touch ${CONFIG_PROPERTIES}
+export MASTER_SSH_USER=$(cat ${CONFIG_PROPERTIES} | grep "^masterSshUser" | awk -F '=' '{print $2}')
+[ "$MASTER_SSH_USER" == "" -o "$MASTER_SSH_USER" == "null" ] && export MASTER_SSH_USER=$(cat ${CONFIG_PROPERTIES} | grep "^sshUser" | awk -F '=' '{print $2}')
+[ "$MASTER_SSH_USER" == "" -o "$MASTER_SSH_USER" == "null" ] && export MASTER_SSH_USER=$(cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "masters")) | .[0] .primary.attributes."tags.sshUser"')
+[ "$MASTER_SSH_USER" == "null" ] && export MASTER_SSH_USER=""
+export MASTER_PUBLIC_IP=$(cat ${CONFIG_PROPERTIES} | grep "^masterPublicIp" | awk -F '=' '{print $2}' | grep -e ".\{1,\}" || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "masters")) | .[0] .primary.attributes."public_ip"')
+export MASTER_PRIVATE_IP=$(cat ${CONFIG_PROPERTIES} | grep "^masterPrivateIp" | awk -F '=' '{print $2}' | grep -e ".\{1,\}" || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "masters")) | .[0] .primary.attributes."private_ip"')
+export MASTER_PUBLIC_DNS=$(cat ${CONFIG_PROPERTIES} | grep "^masterPublicDns" | awk -F '=' '{print $2}' | grep -e ".\{1,\}" || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "masters")) | .[0] .primary.attributes."public_dns"')
+export MASTER_PRIVATE_DNS=$(cat ${CONFIG_PROPERTIES} | grep "masterPrivateDns" | awk -F '=' '{print $2}' | grep -e ".\{1,\}" || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "masters")) | .[0] .primary.attributes."private_dns"')
 
 ALL_HOSTS=$MASTER_PUBLIC_IP
 ALL_MASTER_HOSTS=$MASTER_PUBLIC_IP
+
+export SSH_USER=$MASTER_SSH_USER
+[ "$SSH_USER" == "" ] && echo "ERROR: Could not find sshUser or masterSshUser in ${CONFIG_PROPERTIES} file or in terraform.tfstate; exiting..." >&2 && exit 1
 
 [ "$DEBUG" == "true" ] && echo "ALL_MASTER_HOSTS=$ALL_MASTER_HOSTS"
 
 for i in `seq 0 10000`;
 do
   # find node info from terraform.tfstate:
-  NODE_PUBLIC_IP=$(cat config.properties | grep "^nodePublicIp\[$i\]" | awk -F '=' '{print $2}' | grep -e ".\{1,\}" || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "nodes")) | .['$i'] .primary.attributes."public_ip"')
-  NODE_PRIVATE_IP=$(cat config.properties | grep "^nodePrivateIp\[$i\]" | awk -F '=' '{print $2}' | grep -e ".\{1,\}" || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "nodes")) | .['$i'] .primary.attributes."private_ip"')
-  NODE_PUBLIC_DNS=$(cat config.properties | grep "^nodePublicDns\[$i\]" | awk -F '=' '{print $2}' | grep -e ".\{1,\}" || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "nodes")) | .['$i'] .primary.attributes."public_dns"')
-  NODE_PRIVATE_DNS=$(cat config.properties | grep "^nodePrivateDns\[$i\]" | awk -F '=' '{print $2}' | grep -e ".\{1,\}" || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "nodes")) | .['$i'] .primary.attributes."private_dns"')
+  NODE_SSH_USER=$(cat ${CONFIG_PROPERTIES} | grep "^nodeSshUser\[$i\]" | awk -F '=' '{print $2}' | grep -e ".\{1,\}" || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "nodes")) | .['$i'] .primary.attributes."tags.sshUser"')
+  [ "$NODE_SSH_USER" == "" -o "$NODE_SSH_USER" == "null" ] && NODE_SSH_USER=$(cat ${CONFIG_PROPERTIES} | grep "^sshUser" | awk -F '=' '{print $2}')
+  [ "$NODE_SSH_USER" == "null" ] && NODE_SSH_USER=""
+  NODE_PUBLIC_IP=$(cat ${CONFIG_PROPERTIES} | grep "^nodePublicIp\[$i\]" | awk -F '=' '{print $2}' | grep -e ".\{1,\}" || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "nodes")) | .['$i'] .primary.attributes."public_ip"')
+  NODE_PRIVATE_IP=$(cat ${CONFIG_PROPERTIES} | grep "^nodePrivateIp\[$i\]" | awk -F '=' '{print $2}' | grep -e ".\{1,\}" || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "nodes")) | .['$i'] .primary.attributes."private_ip"')
+  NODE_PUBLIC_DNS=$(cat ${CONFIG_PROPERTIES} | grep "^nodePublicDns\[$i\]" | awk -F '=' '{print $2}' | grep -e ".\{1,\}" || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "nodes")) | .['$i'] .primary.attributes."public_dns"')
+  NODE_PRIVATE_DNS=$(cat ${CONFIG_PROPERTIES} | grep "^nodePrivateDns\[$i\]" | awk -F '=' '{print $2}' | grep -e ".\{1,\}" || cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "nodes")) | .['$i'] .primary.attributes."private_dns"')
 
   # break, if NODE_PRIVATE_IP not found:
   [ "${NODE_PRIVATE_IP}" == "" ] && NODE_PRIVATE_IP=null
   [ "${NODE_PUBLIC_IP}" == "" ] && NODE_PUBLIC_IP=null
   [ "${NODE_PRIVATE_IP}" == "null" -o "${NODE_PUBLIC_IP}" == "null" ] && echo "stopping for loop at i=$i" && break
 
-  # read hostname
-  SSHUSER=root
-  echo "key_path=${key_path}, SSHUSER@NODE_PUBLIC_IP = ${SSHUSER}@${NODE_PUBLIC_IP}"
-  NODE_HOSTNAME=$(ssh -o "StrictHostKeyChecking=no" -t -i ${key_path}  ${SSHUSER}@${NODE_PUBLIC_IP} 'hostname -f')
-  [ "$DEBUG" == "true" ] && echo "NODE_HOSTNAME=$NODE_HOSTNAME"
-
-  # create /etc/hosts entries:
-  #ETC_HOSTS_NODE_ENTRIES="$ETC_HOSTS_NODE_ENTRIES
-#${NODE_PUBLIC_IP}	${NODE_HOSTNAME}	 ${NODE_HOSTNAME}.cluster.local"
-  [ "$DEBUG" == "true" ] && echo "ETC_HOSTS_NODE_ENTRIES=$ETC_HOSTS_NODE_ENTRIES"
-  [ "$INTERACTIVE" == "true" ] && read -p "Proceed with return key" a
-
+# TODO: to be cleaned/removed, once tested successfully:
+#  # read hostname
+#  SSH_USER=root
+#  echo "key_path=${key_path}, SSH_USER@NODE_PUBLIC_IP = ${SSH_USER}@${NODE_PUBLIC_IP}"
+#  NODE_HOSTNAME=$(ssh -o "StrictHostKeyChecking=no" -t -i ${key_path}  ${SSH_USER}@${NODE_PUBLIC_IP} 'hostname -f')
+#  [ "$DEBUG" == "true" ] && echo "NODE_HOSTNAME=$NODE_HOSTNAME"
+#
+#  # create /etc/hosts entries:
+#  #ETC_HOSTS_NODE_ENTRIES="$ETC_HOSTS_NODE_ENTRIES
+##${NODE_PUBLIC_IP}	${NODE_HOSTNAME}	 ${NODE_HOSTNAME}.cluster.local"
+#  [ "$DEBUG" == "true" ] && echo "ETC_HOSTS_NODE_ENTRIES=$ETC_HOSTS_NODE_ENTRIES"
+#  [ "$INTERACTIVE" == "true" ] && read -p "Proceed with return key" a
+#
   # create NODE_ENTRY:
   NODE_ENTRY="${NODE_PUBLIC_IP} openshift_ip=${NODE_PRIVATE_IP} openshift_schedulable=true openshift_node_group_name=\"node-config-compute\""
-  	# echo "$NODE_ENTRY"
+  	[ "$DEBUG" == "true" ] && echo "NODE_ENTRY=$NODE_ENTRY"
 
   # create NODE_ENTRIES variable that will be used in inventory.ini file:
   [ "$NODE_ENTRIES" == "" ] && export NODE_ENTRIES=$NODE_ENTRY || export NODE_ENTRIES="$NODE_ENTRIES"$'\n'"$NODE_ENTRY"
-  	# echo "NODE_ENTRIES=$NODE_ENTRIES"
+  	[ "$DEBUG" == "true" ] && echo "NODE_ENTRIES=$NODE_ENTRIES"
 
 
   ALL_HOSTS="$ALL_HOSTS,$NODE_PUBLIC_IP"
@@ -94,7 +107,13 @@ do
   else
     ALL_NODE_HOSTS="$ALL_NODE_HOSTS,$NODE_PUBLIC_IP"
   fi
-  echo ALL_NODE_HOSTS=$ALL_NODE_HOSTS
+  [ "$DEBUG" == "true" ] && echo ALL_NODE_HOSTS=$ALL_NODE_HOSTS
+
+  # exit, if the SSH User of a node differs from the SSH User of the master:
+  if [ "$NODE_SSH_USER" != "$SSH_USER" ]; then
+    echo "NODE_SSH_USER=SNODE_SSH_USER differs from the MASTER_SSH_USER=$MASTER_SSH_USER; this is not supported, currently" >&2
+    exit 1
+  fi
 done
 
 [ "$DEBUG" == "true" ] && echo "ALL_NODE_HOSTS=$ALL_NODE_HOSTS"
@@ -103,8 +122,11 @@ done
 yum install gettext -y
 envsubst < ${INVENTORY}.ini > ${INVENTORY}
 
-
-SSHUSER=`cat ./${INVENTORY} | grep '^ansible_ssh_user=' | awk -F '=' '{print $2;exit}'`
+[ "$SSH_USER" != "" ] && SSH_USER_INVENTORY=$(cat ./${INVENTORY} | grep '^ansible_ssh_user=' | awk -F '=' '{print $2;exit}')
+if [ "$SSH_USER" != "" ] && [ "$SSH_USER_INVENTORY" != "" ] && [ "$SSH_USER_INVENTORY" != "$SSH_USER" ];then
+  echo "ERROR: SSH_USER=$SSH_USER differs from SSH_USER_INVENTORY=$SSH_USER_INVENTORY" >&2
+  exit 1
+fi
 
 # commands needed on Centos or Fedora to install ansible client for installing openshift on AWS 
 # with project https://github.com/openshift/openshift-ansible
@@ -222,22 +244,22 @@ export ANSIBLE_CONFIG=$DIR/openshift-ansible/ansible.cfg && \
 
 mkdir -p $DIR/log/ || exit 1
 
-echo "ansible-playbook -i $ALL_HOSTS, --become --become-user $SSHUSER --private-key=${KEY_PATH} $DIR/openshift-terraform-ansible/ec2/ansible/ose3-prep-nodes.yml"
+echo "ansible-playbook -i $ALL_HOSTS, --become --become-user $SSH_USER --private-key=${KEY_PATH} $DIR/openshift-terraform-ansible/ec2/ansible/ose3-prep-nodes.yml"
 [ "$INTERACTIVE" == "true" ] && read -p "Proceed with return key" a
 
 # Overwrite /etc/hosts 
-ansible-playbook -i "$ALL_HOSTS," --user $SSHUSER --become --become-user root --private-key=${KEY_PATH} $DIR/overwrite-etc-hosts.yml && echo "SUCCESS: overwritten /etc/hosts" || exit 1
+ansible-playbook -i "$ALL_HOSTS," --user $SSH_USER --become --become-user root --private-key=${KEY_PATH} $DIR/overwrite-etc-hosts.yml && echo "SUCCESS: overwritten /etc/hosts" || exit 1
 
 if [ "$SKIP_FIX_PREREQUISITES" != "true" ]; then
-   ansible-playbook -i "$ALL_HOSTS," --user $SSHUSER --become --become-user root --private-key=${KEY_PATH} $DIR/openshift-terraform-ansible/ec2/ansible/ose3-prep-nodes.yml  || exit 1
+   ansible-playbook -i "$ALL_HOSTS," --user $SSH_USER --become --become-user root --private-key=${KEY_PATH} $DIR/openshift-terraform-ansible/ec2/ansible/ose3-prep-nodes.yml  || exit 1
 fi
 
 [ "$INTERACTIVE" == "true" ] && read -p "Proceed with return key" a
 
-echo "ssh -o \"StrictHostKeyChecking=no\" -t -i ${key_path}  ${SSHUSER}@${MASTER_PUBLIC_IP} <<EOSSHCOMMAND397459 ..."
+echo "ssh -o \"StrictHostKeyChecking=no\" -t -i ${key_path}  ${SSH_USER}@${MASTER_PUBLIC_IP} <<EOSSHCOMMAND397459 ..."
 
 # fix missing nameserver on master:
-ssh -o "StrictHostKeyChecking=no" -t -i ${key_path}  ${SSHUSER}@${MASTER_PUBLIC_IP} <<'EOSSHCOMMAND34782563475' || exit 1
+ssh -o "StrictHostKeyChecking=no" -t -i ${key_path}  ${SSH_USER}@${MASTER_PUBLIC_IP} <<'EOSSHCOMMAND34782563475' || exit 1
 # VARS:
 export IP=${IP:="$(ip route get 8.8.8.8 | awk '{print $NF; exit}')"}
   # short hostname in case hostname is a FQDN:
@@ -255,7 +277,7 @@ EOSSHCOMMAND34782563475
 # fix /etc/hosts and missing nameserver on nodes:
 for host in $(echo $ALL_NODE_HOSTS | sed 's/,/ /g');
 do
-  ssh -o "StrictHostKeyChecking=no" -t -i ${key_path}  ${SSHUSER}@${host} <<'EOSSHCOMMAND8934t94w5' || exit 1
+  ssh -o "StrictHostKeyChecking=no" -t -i ${key_path}  ${SSH_USER}@${host} <<'EOSSHCOMMAND8934t94w5' || exit 1
 # VARS:
 export IP=${IP:="$(ip route get 8.8.8.8 | awk '{print $NF; exit}')"}
   # short hostname in case hostname is a FQDN:
@@ -276,7 +298,7 @@ echo "DONE: nameservers have been added, if needed. Proceed with return key"
 [ "$INTERACTIVE" == "true" ] && read -p "Proceed with return key" a
 
 # create password file on master:
-ssh -o "StrictHostKeyChecking=no" -t -i ${key_path}  ${SSHUSER}@${MASTER_PUBLIC_IP} <<'EOSSHCOMMAND397459' || exit 1
+ssh -o "StrictHostKeyChecking=no" -t -i ${key_path}  ${SSH_USER}@${MASTER_PUBLIC_IP} <<'EOSSHCOMMAND397459' || exit 1
 # TODO: if whoami==root, then avoid sudo
 sudo mkdir -p /etc/origin/master/
 sudo touch /etc/origin/master/htpasswd
@@ -325,10 +347,10 @@ MASTERIP=$MASTER_PUBLIC_IP
 #MASTERDNS=`cat ./${INVENTORY} | grep ec2- | awk -F '=' '{print $2; exit}'`
 MASTERDNS=$MASTER_PUBLIC_DNS
 
-#ssh -t -i ~/AWS_SSH_Key.pem ${SSHUSER}@${MASTERIP} sudo htpasswd -b /etc/origin/openshift-passwd test $TESTPASSWD && \
-echo "ssh -t -i ${key_path}  ${SSHUSER}@${MASTERIP} sudo htpasswd -cb /etc/origin/openshift-passwd test $TESTPASSWD"
-#ssh -t -i ${key_path}  ${SSHUSER}@${MASTERIP} sudo htpasswd -cb /etc/origin/openshift-passwd test $TESTPASSWD && \
-ssh -t -i ${key_path}  ${SSHUSER}@${MASTERIP} <<EOSSHCOMMAND93458924
+#ssh -t -i ~/AWS_SSH_Key.pem ${SSH_USER}@${MASTERIP} sudo htpasswd -b /etc/origin/openshift-passwd test $TESTPASSWD && \
+echo "ssh -t -i ${key_path}  ${SSH_USER}@${MASTERIP} sudo htpasswd -cb /etc/origin/openshift-passwd test $TESTPASSWD"
+#ssh -t -i ${key_path}  ${SSH_USER}@${MASTERIP} sudo htpasswd -cb /etc/origin/openshift-passwd test $TESTPASSWD && \
+ssh -t -i ${key_path}  ${SSH_USER}@${MASTERIP} <<EOSSHCOMMAND93458924
 #sudo mkdir /etc/origin
 #sudo htpasswd -cb /etc/origin/openshift-passwd test $TESTPASSWD
 #sudo htpasswd -b /etc/origin/master/htpasswd test $TESTPASSWD
@@ -349,7 +371,7 @@ if [ "$SUCCESS" == "true" ]; then
    echo "# Log in as user 'admin' with password '$ADMINPASSWD'"
    echo "#"
    echo "# New users can be added by connecting to the master via"
-   echo "#   ssh -t -i ${key_path} ${SSHUSER}@${MASTERIP}"
+   echo "#   ssh -t -i ${key_path} ${SSH_USER}@${MASTERIP}"
    echo "# and there:"
    echo "#   sudo htpasswd -b /etc/origin/master/htpasswd <user> <pass>"
    echo "#"
@@ -360,7 +382,7 @@ else
    echo "######################################################################"
    echo '# Could not create test user on OpenShift Master!!!'
    echo "# Try connecting to the OpenShift master via:"
-   echo "#   ssh -t -i ${key_path} ${SSHUSER}@${MASTERIP}"
+   echo "#   ssh -t -i ${key_path} ${SSH_USER}@${MASTERIP}"
    echo "# and try adding the user manually via:"
    echo "#   sudo htpasswd -b /etc/origin/openshift-passwd test $TESTPASSWD"
    echo "######################################################################"

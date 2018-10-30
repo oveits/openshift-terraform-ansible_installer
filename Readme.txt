@@ -12,10 +12,34 @@ Step by Step:
   $ git clone --recursive https://github.com/oveits/openshift-terraform-ansible_installer
   $ cd openshift-terraform-ansible_installer
 -  retrieve SSK_key.pem and copy it to (openshift-terraform-ansible_installer)/.aws/SSK_key.pem
+- On AWS, perform:
   $ bash 1_docker_create_aws_resources.sh
     (edit files as appropriate)
   $ bash 2_docker_install_openshift_via_ansible.sh
   after ~2 minutes,you might be prompted for your docker hub credentials. Add them. After this, the installation will take >~30 minutes
+- On any existing machines (min 2 vCPUs and 4 GB RAM), create a config.properties file with content like follows:
+    # all
+    sshUser=root
+    
+    # master
+    masterPublicIp=159.69.216.244
+    masterPrivateIp=159.69.216.244
+    
+    # node1
+    nodePublicIp[0]=159.69.216.245
+    nodePrivateIp[0]=159.69.216.245
+    #nodePublicDns[0]=
+    #nodePrivateDns[0]=
+    
+    # node2
+    nodePublicIp[1]=159.69.216.246
+    nodePrivateIp[1]=159.69.216.246
+    #nodePublicDns[1]=
+    #nodePrivateDns[1]=
+  (public and private DNS is optional; private IP is the IP address the other machines in the cluster will need to address)
+  and perform the following commands:
+  $ bash 2_docker_install_openshift_via_ansible.sh config.properties
+  
 - if successful: write down the random password of the admin user
 - connect to the specified URL via a Web Browser
 

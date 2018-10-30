@@ -18,7 +18,7 @@ IMAGESCRIPT="yum install -y epel-release; yum -y update; yum install -y bash; yu
 ## if latest versions do not work, try  ansible 2.6.4:
 #IMAGESCRIPT="yum install -y epel-release; yum -y update; yum install -y bash; yum install -y wget; yum install -y openssh-clients; yum install -y ansible-2.6.4-1.el7.noarch; yum install -y pyOpenSSL; yum install -y python-cryptography; yum install -y python-boto; yum install -y python-lxml-3.2.1-4.el7.x86_64; yum install -y java-1.8.0-openjdk-headless; yum install -y patch; yum install -y httpd-tools; yum install -y git"
 
-RUNSCRIPT="bash 2_install_openshift_via_ansible.sh"
+RUNSCRIPT="bash 2_install_openshift_via_ansible.sh $@"
 
 CURDIR=${PWD##*/}
 
