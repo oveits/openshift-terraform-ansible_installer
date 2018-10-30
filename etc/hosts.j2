@@ -1,0 +1,11 @@
+# {{ ansible_managed }}
+127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
+::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
+
+# Network nodes as generated through Ansible.
+{% for item in play_hosts %}
+{% if 'ansible_eth0' in hostvars[item] %}
+{{ hostvars[item]['ansible_eth0']['ipv4']['address'] }}  {{ hostvars[item]['ansible_hostname'] }} {{ hostvars[item]['ansible_hostname'] }}.cluster.local {% if  hostvars[item]['ansible_hostname'] == 'master' %} console console.{{ hostvars[item]['ansible_eth0']['ipv4']['address'] }}.nip.io {% endif %}
+
+{% endif %}
+{% endfor %}

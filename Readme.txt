@@ -12,34 +12,44 @@ Step by Step:
   $ git clone --recursive https://github.com/oveits/openshift-terraform-ansible_installer
   $ cd openshift-terraform-ansible_installer
 -  retrieve SSK_key.pem and copy it to (openshift-terraform-ansible_installer)/.aws/SSK_key.pem
+- On AWS, perform:
   $ bash 1_docker_create_aws_resources.sh
     (edit files as appropriate)
   $ bash 2_docker_install_openshift_via_ansible.sh
-  after ~2 minutes,you will be prompted for your docker hub credentials. Add them. After this, the installation will take >~30 minutes
-- if successful: write down the password of the test user
-- On a machine with Web Browser: add/change host entry for
-  52.57.62.152  master master.fuse.osecloud.com
-  - Windows hosts file path: C:\Windows\System32\drivers\etc\hosts
-    Note: if you are not administrator, you can copy the file to desktop, edit it there, and copy it back. You will be asked for Administrator password.
-  - Linux hosts file path: /etc/hosts
-- Connect to https://master.fuse.osecloud.com:8443 and log in as test user (with password as written down above)
+  after ~2 minutes,you might be prompted for your docker hub credentials. Add them. After this, the installation will take >~30 minutes
+- On any existing machines (min 2 vCPUs and 4 GB RAM), create a config.properties file with content like follows:
+    # all
+    sshUser=root
+    
+    # master
+    masterPublicIp=159.69.216.244
+    masterPrivateIp=159.69.216.244
+    
+    # node1
+    nodePublicIp[0]=159.69.216.245
+    nodePrivateIp[0]=159.69.216.245
+    #nodePublicDns[0]=
+    #nodePrivateDns[0]=
+    
+    # node2
+    nodePublicIp[1]=159.69.216.246
+    nodePrivateIp[1]=159.69.216.246
+    #nodePublicDns[1]=
+    #nodePrivateDns[1]=
+  (public and private DNS is optional; private IP is the IP address the other machines in the cluster will need to address)
+  and perform the following commands:
+  $ bash 2_docker_install_openshift_via_ansible.sh config.properties
+  
+- if successful: write down the random password of the admin user
+- connect to the specified URL via a Web Browser
 
 Maintenance of AWS instances:
-- for maintenance, ssh centos@ec2-52-57-51-241.eu-central-1.compute.amazonaws.com 
   $ ssh -t -i ${key_path}  ${SSHUSER}@${MASTERIP} 
   where default 
   - key_path=.aws/SSH_Key.pem
   - SSHUSER=centos
-  - MASTERIP is the IP address or DNS names you have find via 
-  $ cat terraform.tfstate | grep ec2- | awk -F '"' '{print $4}'
-- Note: for Vagrant/VirtualBox users: there is a problem setting file permissions on VirtualBox synched folders. 
-        This may lead to WARNING: UNPROTECTED PRIVATE KEY FILE!
-        if the key file is located on such a synched folder.
-        Workaround: from within the Linux guest:
-        cp ${key_path} ~/mykey.pem && \
-          chmod 400 ~/mykey.pem && \
-          ssh -t -i ~/mykey.pem ${SSHUSER}@${MASTERIP} && \
-          rm ~/mykey.pem
+  - MASTERIP is the IP address or DNS names you can find via 
+  $ cat terraform.tfstate | jq -r '.modules[0].resources | map(select(.primary.attributes."tags.role" == "masters")) | .[0] .primary.attributes."public_ip"'
 
 Deletion of AWS instances:
   $ bash 1_docker_create_aws_resources.sh -destroy
@@ -49,6 +59,15 @@ Deletion of AWS instances:
 
 ##########################
 there might be obsolete information below this line
+
+- Note: for Vagrant/VirtualBox users: there is a problem setting file permissions on VirtualBox synched folders. 
+        This may lead to WARNING: UNPROTECTED PRIVATE KEY FILE!
+        if the key file is located on such a synched folder.
+        Workaround: from within the Linux guest:
+        cp ${key_path} ~/mykey.pem && \
+          chmod 400 ~/mykey.pem && \
+          ssh -t -i ~/mykey.pem ${SSHUSER}@${MASTERIP} && \
+          rm ~/mykey.pem
 
 # Specify AWS credentials:
 cp .aws_creds.example .aws_creds
