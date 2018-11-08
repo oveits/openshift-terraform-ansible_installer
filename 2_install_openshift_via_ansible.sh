@@ -347,14 +347,9 @@ MASTERIP=$MASTER_PUBLIC_IP
 #MASTERDNS=`cat ./${INVENTORY} | grep ec2- | awk -F '=' '{print $2; exit}'`
 MASTERDNS=$MASTER_PUBLIC_DNS
 
-#ssh -t -i ~/AWS_SSH_Key.pem ${SSH_USER}@${MASTERIP} sudo htpasswd -b /etc/origin/openshift-passwd test $TESTPASSWD && \
-echo "ssh -t -i ${key_path}  ${SSH_USER}@${MASTERIP} sudo htpasswd -cb /etc/origin/openshift-passwd test $TESTPASSWD"
-#ssh -t -i ${key_path}  ${SSH_USER}@${MASTERIP} sudo htpasswd -cb /etc/origin/openshift-passwd test $TESTPASSWD && \
+[ "$DEBUG == "true" ] && echo "Creating admin user with random password, if it does not already exist"
 ssh -t -i ${key_path}  ${SSH_USER}@${MASTERIP} <<EOSSHCOMMAND93458924
-#sudo mkdir /etc/origin
-#sudo htpasswd -cb /etc/origin/openshift-passwd test $TESTPASSWD
-#sudo htpasswd -b /etc/origin/master/htpasswd test $TESTPASSWD
-sudo htpasswd -b /etc/origin/master/htpasswd admin $ADMINPASSWD
+sudo grep -v 'admin:' /etc/origin/master/htpasswd && sudo htpasswd -b /etc/origin/master/htpasswd admin $ADMINPASSWD
 sudo oc adm policy add-cluster-role-to-user cluster-admin admin
 EOSSHCOMMAND93458924
 
@@ -371,7 +366,7 @@ if [ "$SUCCESS" == "true" ]; then
    echo "# Log in as user 'admin' with password '$ADMINPASSWD'"
    echo "#"
    echo "# New users can be added by connecting to the master via"
-   echo "#   ssh -t -i ${key_path} ${SSH_USER}@${MASTERIP}"
+   echo "#   ssh -o "StrictHostKeyChecking=no" -t -i ${key_path} ${SSH_USER}@${MASTERIP}"
    echo "# and there:"
    echo "#   sudo htpasswd -b /etc/origin/master/htpasswd <user> <pass>"
    echo "#"
@@ -382,7 +377,7 @@ else
    echo "######################################################################"
    echo '# Could not create test user on OpenShift Master!!!'
    echo "# Try connecting to the OpenShift master via:"
-   echo "#   ssh -t -i ${key_path} ${SSH_USER}@${MASTERIP}"
+   echo "#   ssh -o "StrictHostKeyChecking=no" -t -i ${key_path} ${SSH_USER}@${MASTERIP}"
    echo "# and try adding the user manually via:"
    echo "#   sudo htpasswd -b /etc/origin/openshift-passwd test $TESTPASSWD"
    echo "######################################################################"
