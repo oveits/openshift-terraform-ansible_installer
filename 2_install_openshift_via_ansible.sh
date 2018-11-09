@@ -4,7 +4,7 @@ DEBUG=true
 SKIP_FIX_PREREQUISITES=false
 SKIP_CHECK_PREREQUISITES=false
 [ "$CONFIG_PROPERTIES" == "" ] && CONFIG_PROPERTIES=$1
-[ "$CONFIG_PROPERTIES" == "" ] && CONFIG_PROPERTIES=dummy.properties
+[ "$CONFIG_PROPERTIES" == "" ] && CONFIG_PROPERTIES=config.properties
 
 # enable root login on AWS CentOS (does not help with the issues, though)
 # sudo cp /root/.ssh/authorized_keys /root/.ssh/authorized_keys.bak

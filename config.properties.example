@@ -1,0 +1,14 @@
+# global
+sshUser=root
+
+# master
+masterPublicIp=123.1.1.1
+masterPrivateIp=10.1.1.1
+
+# node1
+nodePublicIp[0]=123.1.2.1
+nodePrivateIp[0]=10.1.2.1
+
+# node2
+nodePublicIp[1]=123.1.2.2
+nodePrivateIp[1]=10.1.2.2
