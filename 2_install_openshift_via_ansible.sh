@@ -347,15 +347,20 @@ MASTERIP=$MASTER_PUBLIC_IP
 #MASTERDNS=`cat ./${INVENTORY} | grep ec2- | awk -F '=' '{print $2; exit}'`
 MASTERDNS=$MASTER_PUBLIC_DNS
 
+TMPFILE="/tmp/user-creation_$(/dev/urandom tr -dc _A-Z-a-z-0-9 | head -c6).log"
 [ "$DEBUG == "true" ] && echo "Creating admin user with random password, if it does not already exist"
-ssh -t -i ${key_path}  ${SSH_USER}@${MASTERIP} <<EOSSHCOMMAND93458924
-sudo grep -v 'admin:' /etc/origin/master/htpasswd && sudo htpasswd -b /etc/origin/master/htpasswd admin $ADMINPASSWD
+ssh -t -i ${key_path}  ${SSH_USER}@${MASTERIP} <<EOSSHCOMMAND93458924 | sudo tee $TMPFILE
+sudo grep -v 'admin:' /etc/origin/master/htpasswd && sudo htpasswd -b /etc/origin/master/htpasswd admin $ADMINPASSWD && echo 'User admin created' || echo 'WARN: User admin exists already'
 sudo oc adm policy add-cluster-role-to-user cluster-admin admin
 EOSSHCOMMAND93458924
 
-[ $? == 0 ] && SUCCESS=true || SUCCESS=false
+USER_CREATED=false
+USER_EXISTS=false
+cat $TMPFILE && grep 'exists already' && USER_CREATED=false && USER_EXISTS=true
+cat $TMPFILE && grep 'created' && USER_CREATED=true && USER_EXISTS=true
+sudo rm $TMPFILE
 
-if [ "$SUCCESS" == "true" ]; then
+if [ "$USER_EXISTS" == "true" ]; then
    OPENSHIFT_PUBLIC_HOSTNAME=$(grep openshift_public_hostname $INVENTORY | awk -F '=' '{print $2}')
    [ "$OPENSHIFT_PUBLIC_HOSTNAME" == "" ] && OPENSHIFT_PUBLIC_HOSTNAME=${MASTERDNS}
    echo "######################################################################"
@@ -363,14 +368,19 @@ if [ "$SUCCESS" == "true" ]; then
    echo "# Use a browser to connect to https://${OPENSHIFT_PUBLIC_HOSTNAME}:8443"
    echo "# If $OPENSHIFT_PUBLIC_HOSTNAME is not reachable, try adding $OPENSHIFT_PUBLIC_HOSTNAME to your hosts file with IP address $MASTERIP and make sure the connection is not blocked by a firewall"
    echo "#"
-   echo "# Log in as user 'admin' with password '$ADMINPASSWD'"
+
+   if [ "$USER_CREATED" == "true" ]; then
+      echo "# Log in as user 'admin' with password '$ADMINPASSWD'"
+   else
+      echo "# Log in as user 'admin' with existing password (for info about password reset, see below"
+   fi
+      
    echo "#"
-   echo "# New users can be added by connecting to the master via"
+   echo "# New users can be added (or the password of existing users can be reset) by connecting to the master via"
    echo "#   ssh -o "StrictHostKeyChecking=no" -t -i ${key_path} ${SSH_USER}@${MASTERIP}"
    echo "# and there:"
    echo "#   sudo htpasswd -b /etc/origin/master/htpasswd <user> <pass>"
    echo "#"
-   echo "# The password of admin can be reset on the master with 'sudo htpasswd -b /etc/origin/openshift-passwd admin <newpassword>'"
    echo "######################################################################"
 
 else
@@ -379,7 +389,7 @@ else
    echo "# Try connecting to the OpenShift master via:"
    echo "#   ssh -o "StrictHostKeyChecking=no" -t -i ${key_path} ${SSH_USER}@${MASTERIP}"
    echo "# and try adding the user manually via:"
-   echo "#   sudo htpasswd -b /etc/origin/openshift-passwd test $TESTPASSWD"
+   echo "#   sudo htpasswd -b /etc/origin/master/htpasswd test $TESTPASSWD"
    echo "######################################################################"
 fi
 
