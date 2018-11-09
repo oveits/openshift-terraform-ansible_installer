@@ -349,7 +349,7 @@ MASTERDNS=$MASTER_PUBLIC_DNS
 
 TMPFILE="/tmp/user-creation_$(< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c6).log"
 [ "$DEBUG" == "true" ] && echo "Creating admin user with random password, if it does not already exist"
-ssh -o "StrictHostKeyChecking=no" -t -i ${key_path}  ${SSH_USER}@${MASTERIP} <<EOSSHCOMMAND93458924 | sudo tee $TMPFILE
+ssh -o "StrictHostKeyChecking=no" -t -i ${key_path}  ${SSH_USER}@${MASTERIP} <<EOSSHCOMMAND93458924 | tee $TMPFILE
 sudo grep -v 'admin:' /etc/origin/master/htpasswd && sudo htpasswd -b /etc/origin/master/htpasswd admin $ADMINPASSWD && echo 'User admin created' || echo 'WARN: User admin exists already'
 sudo oc adm policy add-cluster-role-to-user cluster-admin admin
 EOSSHCOMMAND93458924
@@ -358,7 +358,7 @@ USER_CREATED=false
 USER_EXISTS=false
 cat $TMPFILE | grep 'exists already' && USER_CREATED=false && USER_EXISTS=true
 cat $TMPFILE | grep 'created' && USER_CREATED=true && USER_EXISTS=true
-sudo rm $TMPFILE
+rm $TMPFILE
 
 [ "$DEBUG" == "true" ] && echo "USER_CREATED=$USER_CREATED"
 [ "$DEBUG" == "true" ] && echo "USER_EXISTS=$USER_EXISTS"
