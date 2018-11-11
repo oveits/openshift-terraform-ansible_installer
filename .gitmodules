@@ -13,6 +13,6 @@
    path = openshift-terraform-ansible
    url = https://github.com/oveits/openshift-terraform-ansible
    #branch = master
-   branch = cff9bcb9b2cd075a31d220cf3ded265feecea862
+   branch = bcc1458ec49dfda42b2098cb02cdedbb91ea3102
 
 

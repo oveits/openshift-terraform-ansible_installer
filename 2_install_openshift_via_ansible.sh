@@ -306,7 +306,7 @@ sudo chmod 600 /etc/origin/master/htpasswd
 EOSSHCOMMAND397459
 
 if [ "$SKIP_CHECK_PREREQUISITES" != "true" ]; then
-   ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/prerequisites.yml -vvv | tee $DIR/log/2_install_openshift_via_ansible.log
+   ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/prerequisites.yml -vvv | tee $DIR/log/2_install_openshift_via_ansible.log || exit 1
 fi
 # ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/openshift-master/config.yml -vvv 
 
@@ -316,7 +316,7 @@ echo "DONE: ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_p
 
 # has caused "Timeout (32s) waiting for privilege escalation prompt":
 # ansible-playbook -i $DIR/${INVENTORY} --become --become-method=su --private-key=${key_path} $DIR/openshift-ansible/playbooks/deploy_cluster.yml -vvvvv | tee -a $DIR/log/2_install_openshift_via_ansible.log
-ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/deploy_cluster.yml -vvvvv | tee -a $DIR/log/2_install_openshift_via_ansible.log
+ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/deploy_cluster.yml -vvvvv | tee -a $DIR/log/2_install_openshift_via_ansible.log || exit 1
 ansible --version
 # in the moment, the playbook fails on first run, therefore, let us try again:
 #[ $? != 0 ] && "echo retrying..." && ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/deploy_cluster.yml -vvvvv | tee -a $DIR/log/2_install_openshift_via_ansible.log
