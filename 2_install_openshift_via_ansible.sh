@@ -6,6 +6,11 @@ SKIP_CHECK_PREREQUISITES=false
 [ "$CONFIG_PROPERTIES" == "" ] && CONFIG_PROPERTIES=$1
 [ "$CONFIG_PROPERTIES" == "" ] && CONFIG_PROPERTIES=config.properties
 
+exitWithMessage(){
+   echo "ERROR: $2" >&2
+   exit $1
+}
+
 # enable root login on AWS CentOS (does not help with the issues, though)
 # sudo cp /root/.ssh/authorized_keys /root/.ssh/authorized_keys.bak
 # sudo cp /home/centos/.ssh/authorized_keys /root/.ssh/authorized_keys
@@ -59,7 +64,7 @@ ALL_HOSTS=$MASTER_PUBLIC_IP
 ALL_MASTER_HOSTS=$MASTER_PUBLIC_IP
 
 export SSH_USER=$MASTER_SSH_USER
-[ "$SSH_USER" == "" ] && echo "ERROR: Could not find sshUser or masterSshUser in ${CONFIG_PROPERTIES} file or in terraform.tfstate; exiting..." >&2 && exit 1
+[ "$SSH_USER" == "" ] && exitWithMessage 1 "ERROR: Could not find sshUser or masterSshUser in ${CONFIG_PROPERTIES} file or in terraform.tfstate; exiting..."
 
 [ "$DEBUG" == "true" ] && echo "ALL_MASTER_HOSTS=$ALL_MASTER_HOSTS"
 
@@ -111,8 +116,7 @@ do
 
   # exit, if the SSH User of a node differs from the SSH User of the master:
   if [ "$NODE_SSH_USER" != "$SSH_USER" ]; then
-    echo "NODE_SSH_USER=SNODE_SSH_USER differs from the MASTER_SSH_USER=$MASTER_SSH_USER; this is not supported, currently" >&2
-    exit 1
+    exitWithMessage 1 "NODE_SSH_USER=SNODE_SSH_USER differs from the MASTER_SSH_USER=$MASTER_SSH_USER; this is not supported, currently"
   fi
 done
 
@@ -124,8 +128,7 @@ envsubst < ${INVENTORY}.ini > ${INVENTORY}
 
 [ "$SSH_USER" != "" ] && SSH_USER_INVENTORY=$(cat ./${INVENTORY} | grep '^ansible_ssh_user=' | awk -F '=' '{print $2;exit}')
 if [ "$SSH_USER" != "" ] && [ "$SSH_USER_INVENTORY" != "" ] && [ "$SSH_USER_INVENTORY" != "$SSH_USER" ];then
-  echo "ERROR: SSH_USER=$SSH_USER differs from SSH_USER_INVENTORY=$SSH_USER_INVENTORY" >&2
-  exit 1
+  exitWithMessage 1 "ERROR: SSH_USER=$SSH_USER differs from SSH_USER_INVENTORY=$SSH_USER_INVENTORY" >&2
 fi
 
 # commands needed on Centos or Fedora to install ansible client for installing openshift on AWS 
@@ -248,10 +251,10 @@ echo "ansible-playbook -i $ALL_HOSTS, --become --become-user $SSH_USER --private
 [ "$INTERACTIVE" == "true" ] && read -p "Proceed with return key" a
 
 # Overwrite /etc/hosts 
-ansible-playbook -i "$ALL_HOSTS," --user $SSH_USER --become --become-user root --private-key=${KEY_PATH} $DIR/overwrite-etc-hosts.yml && echo "SUCCESS: overwritten /etc/hosts" || exit 1
+ansible-playbook -i "$ALL_HOSTS," --user $SSH_USER --become --become-user root --private-key=${KEY_PATH} $DIR/overwrite-etc-hosts.yml && echo "SUCCESS: overwritten /etc/hosts" || exitWithMessage 1 "Failed to overwrite /etc/hosts"
 
 if [ "$SKIP_FIX_PREREQUISITES" != "true" ]; then
-   ansible-playbook -i "$ALL_HOSTS," --user $SSH_USER --become --become-user root --private-key=${KEY_PATH} $DIR/openshift-terraform-ansible/ec2/ansible/ose3-prep-nodes.yml  || exit 1
+   ansible-playbook -i "$ALL_HOSTS," --user $SSH_USER --become --become-user root --private-key=${KEY_PATH} $DIR/openshift-terraform-ansible/ec2/ansible/ose3-prep-nodes.yml  || exitWithMessage 1 "Failed to install prerequisites"
 fi
 
 [ "$INTERACTIVE" == "true" ] && read -p "Proceed with return key" a
@@ -259,7 +262,7 @@ fi
 echo "ssh -o \"StrictHostKeyChecking=no\" -t -i ${key_path}  ${SSH_USER}@${MASTER_PUBLIC_IP} <<EOSSHCOMMAND397459 ..."
 
 # fix missing nameserver on master:
-ssh -o "StrictHostKeyChecking=no" -t -i ${key_path}  ${SSH_USER}@${MASTER_PUBLIC_IP} <<'EOSSHCOMMAND34782563475' || exit 1
+ssh -o "StrictHostKeyChecking=no" -t -i ${key_path}  ${SSH_USER}@${MASTER_PUBLIC_IP} <<'EOSSHCOMMAND34782563475' || exitWithMessage 1 "Failed to create missing nameserver on master"
 # VARS:
 export IP=${IP:="$(ip route get 8.8.8.8 | awk '{print $NF; exit}')"}
   # short hostname in case hostname is a FQDN:
@@ -277,7 +280,7 @@ EOSSHCOMMAND34782563475
 # fix /etc/hosts and missing nameserver on nodes:
 for host in $(echo $ALL_NODE_HOSTS | sed 's/,/ /g');
 do
-  ssh -o "StrictHostKeyChecking=no" -t -i ${key_path}  ${SSH_USER}@${host} <<'EOSSHCOMMAND8934t94w5' || exit 1
+  ssh -o "StrictHostKeyChecking=no" -t -i ${key_path}  ${SSH_USER}@${host} <<'EOSSHCOMMAND8934t94w5' || exitWithMessage 1 "Failed to create missing nameserver on master"
 # VARS:
 export IP=${IP:="$(ip route get 8.8.8.8 | awk '{print $NF; exit}')"}
   # short hostname in case hostname is a FQDN:
@@ -298,7 +301,7 @@ echo "DONE: nameservers have been added, if needed. Proceed with return key"
 [ "$INTERACTIVE" == "true" ] && read -p "Proceed with return key" a
 
 # create password file on master:
-ssh -o "StrictHostKeyChecking=no" -t -i ${key_path}  ${SSH_USER}@${MASTER_PUBLIC_IP} <<'EOSSHCOMMAND397459' || exit 1
+ssh -o "StrictHostKeyChecking=no" -t -i ${key_path}  ${SSH_USER}@${MASTER_PUBLIC_IP} <<'EOSSHCOMMAND397459' || exitWithMessage 1 "Failed to create password file on master"
 # TODO: if whoami==root, then avoid sudo
 sudo mkdir -p /etc/origin/master/
 sudo touch /etc/origin/master/htpasswd
@@ -306,7 +309,7 @@ sudo chmod 600 /etc/origin/master/htpasswd
 EOSSHCOMMAND397459
 
 if [ "$SKIP_CHECK_PREREQUISITES" != "true" ]; then
-   ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/prerequisites.yml -vvv | tee $DIR/log/2_install_openshift_via_ansible.log || exit 1
+   ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/prerequisites.yml -vvv | tee $DIR/log/2_install_openshift_via_ansible.log || exitWithMessage 1 "Failed to check prerequisites"
 fi
 # ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/openshift-master/config.yml -vvv 
 
@@ -316,7 +319,7 @@ echo "DONE: ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_p
 
 # has caused "Timeout (32s) waiting for privilege escalation prompt":
 # ansible-playbook -i $DIR/${INVENTORY} --become --become-method=su --private-key=${key_path} $DIR/openshift-ansible/playbooks/deploy_cluster.yml -vvvvv | tee -a $DIR/log/2_install_openshift_via_ansible.log
-ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/deploy_cluster.yml -vvvvv | tee -a $DIR/log/2_install_openshift_via_ansible.log || exit 1
+ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/deploy_cluster.yml -vvvvv | tee -a $DIR/log/2_install_openshift_via_ansible.log || exitWithMessage 1 "Failed to deploy cluster"
 ansible --version
 # in the moment, the playbook fails on first run, therefore, let us try again:
 #[ $? != 0 ] && "echo retrying..." && ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/deploy_cluster.yml -vvvvv | tee -a $DIR/log/2_install_openshift_via_ansible.log
