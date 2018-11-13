@@ -14,7 +14,7 @@ PUSH=true
 #IMAGESCRIPT="yum install -y epel-release; yum -y update; yum install -y bash; yum install -y wget; yum install -y openssh-clients; yum install -y ansible; yum install -y pyOpenSSL; yum install -y python-cryptography; yum install -y python-boto; yum install -y git; yum install -y jq"
 
 ## if latest versions do not work, try  ansible 2.6.r54 (installed via RPM and disable updates):
-IMAGESCRIPT="yum install -y epel-release; yum -y update; yum install -y bash; yum install -y wget; yum install -y openssh-clients; yum remove -y ansible; curl -O http://cbs.centos.org/kojifiles/packages/ansible/2.6.5/1.el7/noarch/ansible-2.6.5-1.el7.noarch.rpm && yum -y --enablerepo=epel install ansible-2.6.5-1.el7.noarch.rpm && cat /etc/yum.conf | grep -v -q 'exclude=ansible' && echo "exclude=ansible" >> /etc/yum.conf; yum install -y pyOpenSSL; yum install -y python-cryptography; yum install -y python-boto; yum install -y python-lxml-3.2.1-4.el7.x86_64; yum install -y java-1.8.0-openjdk-headless; yum install -y patch; yum install -y httpd-tools; yum install -y git"
+IMAGESCRIPT="yum install -y epel-release; yum -y update; yum install -y bash; yum install -y wget; yum install -y openssh-clients; yum remove -y ansible; curl -O http://cbs.centos.org/kojifiles/packages/ansible/2.6.5/1.el7/noarch/ansible-2.6.5-1.el7.noarch.rpm && yum -y --enablerepo=epel install ansible-2.6.5-1.el7.noarch.rpm && cat /etc/yum.conf | grep -v -q 'exclude=ansible' && echo 'exclude=ansible' >> /etc/yum.conf; yum install -y pyOpenSSL; yum install -y python-cryptography; yum install -y python-boto; yum install -y python-lxml-3.2.1-4.el7.x86_64; yum install -y java-1.8.0-openjdk-headless; yum install -y patch; yum install -y httpd-tools; yum install -y git; yum install -y python-passlib-1.6.5-2.el7.noarch"
 ## if latest versions do not work, try  ansible 2.6.4:
 #IMAGESCRIPT="yum install -y epel-release; yum -y update; yum install -y bash; yum install -y wget; yum install -y openssh-clients; yum install -y ansible-2.6.4-1.el7.noarch; yum install -y pyOpenSSL; yum install -y python-cryptography; yum install -y python-boto; yum install -y python-lxml-3.2.1-4.el7.x86_64; yum install -y java-1.8.0-openjdk-headless; yum install -y patch; yum install -y httpd-tools; yum install -y git"
 
@@ -56,6 +56,6 @@ docker rm ${CONTAINERNAME} 2>/dev/null 1>/dev/null
 docker run -it --rm --name ${CONTAINERNAME} --entrypoint="sh" -v `pwd`:/app ${IMAGENAME} -c "cd /app/${CURDIR}; ${RUNSCRIPT}"
 
 # for interactive tests:
-#docker run -it --rm --name ${CONTAINERNAME} --entrypoint="bash" -v `pwd`:/app ${IMAGENAME} -c "cd /app/${CURDIR}; bash"
+#docker run -it --rm --name ${CONTAINERNAME} --entrypoint="bash" -v `pwd`:/app ${IMAGENAME} -c "cd /app/${CURDIR}; echo \"Try running ${RUNSCRIPT}\"; bash"
 
 

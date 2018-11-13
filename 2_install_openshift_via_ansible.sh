@@ -1,10 +1,15 @@
 
+# for replaying openshift-metrics only:
+#[ "$PLAYBOOK" == "" ] && PLAYBOOK="playbooks/openshift-metrics/config.yml"
+
 INTERACTIVE=false
 DEBUG=true
 SKIP_FIX_PREREQUISITES=false
 SKIP_CHECK_PREREQUISITES=false
 [ "$CONFIG_PROPERTIES" == "" ] && CONFIG_PROPERTIES=$1
 [ "$CONFIG_PROPERTIES" == "" ] && CONFIG_PROPERTIES=config.properties
+# Note: METRICS_IMAGE_TAG(s)=3.10 and 3.10.0 do not exist! v3.9 is tested successfully and 3.11.0 seems to have connection problems between metrics and cassandra
+export METRICS_IMAGE_TAG=v3.9
 
 exitWithMessage(){
    echo "ERROR: $2" >&2
@@ -319,7 +324,8 @@ echo "DONE: ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_p
 
 # has caused "Timeout (32s) waiting for privilege escalation prompt":
 # ansible-playbook -i $DIR/${INVENTORY} --become --become-method=su --private-key=${key_path} $DIR/openshift-ansible/playbooks/deploy_cluster.yml -vvvvv | tee -a $DIR/log/2_install_openshift_via_ansible.log
-ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/deploy_cluster.yml -vvvvv | tee -a $DIR/log/2_install_openshift_via_ansible.log || exitWithMessage 1 "Failed to deploy cluster"
+[ "$PLAYBOOK" == "" ] && PLAYBOOK="playbooks/deploy_cluster.yml"
+ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_path} "$DIR/openshift-ansible/${PLAYBOOK}" -vvvvv | tee -a $DIR/log/2_install_openshift_via_ansible.log || exitWithMessage 1 "Failed to deploy cluster"
 ansible --version
 # in the moment, the playbook fails on first run, therefore, let us try again:
 #[ $? != 0 ] && "echo retrying..." && ansible-playbook -i $DIR/${INVENTORY} --become --private-key=${key_path} $DIR/openshift-ansible/playbooks/deploy_cluster.yml -vvvvv | tee -a $DIR/log/2_install_openshift_via_ansible.log
